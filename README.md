@@ -1,4 +1,4 @@
-# Unnamed SSG
+# mathyl
 
 Sigh... It has come to this again. I have to build another thing myself because all existing solutions are lacking in some dimension. This time it's a static site generator. Apparently it's already a meme that everyone and their grandma is building their own SSG, which makes it all the more surprising that none of the hundreds of frameworks I tried to day fit my needs. 
 
