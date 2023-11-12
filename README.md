@@ -6,9 +6,18 @@ I want to write a mathematics-heavy blog, so I need extensive LaTeX support &nda
 
 This is my attempt to satisfy these demands ...written in Haskell of course :)
 
+## Features
+
+## Usage
+
+```
+mathyl build <in path> <out path>
+```
+Copies the directory at <in path> to <out path>, filling templates and rendering LaTeX and tikZ elements.
+
 ## Implementation TODOs
 
-* [ ] Parse Markdown files, extract tikz drawings 
+* [ ] Parse Markdown files, extract tikz drawings and metadata
 * [ ] Handle math & markdown compilation with pandoc
 * [ ] Handle tikZ drawings with locally installed version of latex and `standalone` package
-
+* [ ] Implement template filling with stache
