@@ -1,4 +1,30 @@
 module Main where
 
+import Util.CliParsers (
+  BuildOptions (..),
+  Command (..),
+  Options (optCommand),
+  PreviewOptions (..),
+  getCliOptions,
+ )
+import System.IO.Temp (withSystemTempDirectory)
+
+compile :: FilePath -> FilePath -> IO ()
+compile = undefined
+
+display :: FilePath -> IO ()
+display = undefined
+
+run :: Command -> IO ()
+run (Build opts) = compile (bInDir opts) (bOutDir opts)
+run (Preview opts) = case pOutDir opts of 
+    Just outDir -> runMathyl (pInDir opts) outDir 
+    Nothing -> withSystemTempDirectory "mathyl" (runMathyl $ pInDir opts)
+
+runMathyl :: FilePath -> FilePath -> IO ()
+runMathyl inDir outDir = compile inDir outDir >> display outDir
+
 main :: IO ()
-main = putStrLn "Hello, Haskell!"
+main = do
+  opts <- getCliOptions
+  run (optCommand opts)
