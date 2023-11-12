@@ -7,6 +7,11 @@ I want to write a mathematics-heavy blog, so I need extensive LaTeX support &nda
 This is my attempt to satisfy these demands ...written in Haskell of course :)
 
 ## Features
+- HTML generation from Markdown files 
+- Server-side rendering of LaTeX formulas using KaTeX
+- Server-side rendering of tikZ pictures 
+
+I mainly wrote mathyl for my personal use, but PRs are always welcome.
 
 ## Usage
 
@@ -14,6 +19,11 @@ This is my attempt to satisfy these demands ...written in Haskell of course :)
 mathyl build <in path> <out path>
 ```
 Copies the directory at <in path> to <out path>, filling templates and rendering LaTeX and tikZ elements.
+
+```
+mathyl preview <in path> [out path]
+```
+Compiles your blog and exposes it at 127.0.0.1:8080. Stores your blog files at [out path]. 
 
 ## Implementation TODOs
 
