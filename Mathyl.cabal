@@ -27,5 +27,7 @@ executable Mathyl
                     , text ^>= 1.2.5.0
                     , pandoc ^>= 3.1.9
                     , temporary ^>= 1.2.1.1
+                    , directory ^>= 1.3.8.1
+                    , filepath ^>= 1.4.100.0
     hs-source-dirs:   app
     default-language: Haskell2010
