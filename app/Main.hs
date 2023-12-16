@@ -1,19 +1,26 @@
 -- TODO: refactor this into multiple files
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
 import Control.Monad (filterM, forM_)
 import Control.Monad.IO.Class (liftIO)
+import Data.Bifunctor
 import Data.Functor
-import Data.List (isSuffixOf)
+import Data.List (foldl', isSuffixOf)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import System.Directory (doesDirectoryExist, listDirectory)
-import System.FilePath (takeFileName, (</>))
+import System.FilePath (takeDirectory, takeFileName, (<.>), (</>), joinPath)
 import System.IO.Temp (withSystemTempDirectory)
+import System.IO (hPutStrLn, hPrint)
+import qualified System.IO as FD
 import Text.Pandoc (
-  Extension (Ext_fenced_code_attributes, Ext_fenced_code_blocks, Ext_yaml_metadata_block),
+  Block (CodeBlock, Para),
+  Extension (Ext_fenced_code_attributes, Ext_fenced_code_blocks, Ext_tex_math_dollars, Ext_yaml_metadata_block),
   Extensions,
-  HTMLMathMethod,
+  HTMLMathMethod (KaTeX),
+  Inline (Image),
   Pandoc (Pandoc),
   PandocIO (PandocIO),
   ReaderOptions (readerExtensions),
@@ -24,7 +31,7 @@ import Text.Pandoc (
   readMarkdown,
   runIO,
   writeHtml5String,
-  writeRST,
+  writeRST, Meta (unMeta),
  )
 import Util.CliParsers (
   BuildOptions (..),
@@ -33,6 +40,9 @@ import Util.CliParsers (
   PreviewOptions (..),
   getCliOptions,
  )
+import Data.Map.Strict (Map, fromList, toList)
+
+newtype TikzSource = TikzSource T.Text deriving (Show)
 
 markdownExtensions :: Extensions
 markdownExtensions =
@@ -40,10 +50,11 @@ markdownExtensions =
     [ Ext_fenced_code_blocks
     , Ext_fenced_code_attributes
     , Ext_yaml_metadata_block
+    , Ext_tex_math_dollars
     ]
 
 katexWriter :: HTMLMathMethod
-katexWriter = undefined
+katexWriter = KaTeX "vendor/katex"
 
 -- TODO: replace print statements by proper logging
 compile :: FilePath -> FilePath -> IO ()
@@ -53,21 +64,58 @@ compile inDir outDir = do
   forM_ posts
     $ \post -> do
       let fileName = takeFileName post
+      let dirName = takeDirectory post
+      let assetDir = dirName </> joinPath [dirName, "-assets"]
+
       putStrLn (" Compiling " ++ show fileName)
 
       md <- TIO.readFile post
-      result <- runIO $ do
-        doc <- readMarkdown def{readerExtensions = markdownExtensions} md
-        liftIO $ print doc
-        html <- writeHtml5String def{writerHTMLMathMethod = katexWriter} doc
-        -- liftIO $ print html
-        return html
+      result <- runIO $ readMarkdown def{readerExtensions = markdownExtensions} md
+      
+      case result of 
+        Left error -> do 
+          hPutStrLn FD.stderr "Failed!"
+          hPrint FD.stderr error
+        Right ast -> do
+          let (parsedAst, tikzImages) = parseTikzBlocks ast assetDir
+          let numImages = length tikzImages
+
+          forM_ (zip [1..] tikzImages) $ \(idx, source) -> do 
+            putStrLn ("  Compiling Image " ++ show idx ++ "/" ++ show numImages)
+            compileTikzImage source 
+
+          html <- runIO $ writeHtml5String def{writerHTMLMathMethod = katexWriter} parsedAst
+          putStrLn "  Filling template"
+
+          metadata <- parseMetadata parsedAst
+
+          fillTemplate (insert "content" html metadata) 
+          liftIO $ print html
+
 
       putStrLn "Done!"
 
--- let doc = readMarkdown def md :: PandocIO Pandoc
--- doc2 <- doc
--- print doc2
+parseMetadata :: Pandoc -> IO (Map String String)
+parseMetadata (Pandoc meta _) = fromList parseMetadata_ (unMeta meta)
+  where parseMetadata_ metaMap = do let kvList = toList metaMap
+                                    forM kvList $ \(k, v) -> do 
+                                      
+
+compileTikzImage :: TikzSource -> IO ()
+compileTikzImage = undefined
+
+tikzPlaceholder :: FilePath -> Int -> Block
+tikzPlaceholder path idx = Para [Image ("tikz", [], []) [] (T.pack $ path </> show idx <.> "pdf", "")]
+
+parseTikzBlocks :: Pandoc -> FilePath -> (Pandoc, [TikzSource])
+parseTikzBlocks (Pandoc meta items) path =
+  first (Pandoc meta)
+    $ foldl' insert ([], []) (zip [1 ..] items)
+ where
+  insert (pandocItems, tikzItems) (idx, CodeBlock (_, ["tikz"], _) source) =
+    (tikzPlaceholder path idx : pandocItems, TikzSource source : tikzItems)
+  insert (pandocItems, tikzItems) (_, item) =
+    (item : pandocItems, tikzItems)
 
 getMarkdownFiles :: FilePath -> IO [FilePath]
 getMarkdownFiles dir = do
