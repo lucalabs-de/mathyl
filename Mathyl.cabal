@@ -21,13 +21,14 @@ executable Mathyl
     other-modules:    Util.CliParsers
                     , Paths_Mathyl
 
-    build-depends:    base ^>=4.16.4.0
-                    , optparse-applicative ^>=0.18.1.0
-                    , stache ^>=2.3.4
-                    , text ^>= 1.2.5.0
-                    , pandoc ^>= 3.1.9
-                    , temporary ^>= 1.2.1.1
-                    , directory ^>= 1.3.8.1
-                    , filepath ^>= 1.4.100.0
+    build-depends:    base
+                    , optparse-applicative
+                    , stache
+                    , text 
+                    , pandoc 
+                    , temporary
+                    , directory
+                    , containers
+                    , filepath
     hs-source-dirs:   app
     default-language: Haskell2010
