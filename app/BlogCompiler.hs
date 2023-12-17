@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module BlogCompiler where
+module BlogCompiler (compile) where
 
 import Control.Monad (filterM, forM_)
 import Control.Monad.IO.Class (liftIO)

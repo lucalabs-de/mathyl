@@ -3,7 +3,7 @@
 
 module Main where
 
-import BlogCompiler (compile)
+import BlogCompiler
 import System.IO.Temp (withSystemTempDirectory)
 import Util.CliParsers
 
