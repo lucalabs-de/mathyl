@@ -26,6 +26,7 @@ executable Mathyl
                     , Paths_Mathyl
 
     build-depends:    base
+                    , aeson
                     , optparse-applicative
                     , stache
                     , text 

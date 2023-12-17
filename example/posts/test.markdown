@@ -1,6 +1,7 @@
 ---
 title: Example Post
 published: 2023-11-11
+packages: amsmath, braket
 ---
 
 # This is a test Post
@@ -11,6 +12,6 @@ $$\sum_{i=1}^n i = \frac{n(n+1)}{2}$$
 
 ![This is the caption](/url/of/image.png)
 
-~~~ {.tikz}
+~~~tikz {.arrows.meta}
 \draw (0,0) .. controls (0,4) and (4,0) .. (4,4);
 ~~~

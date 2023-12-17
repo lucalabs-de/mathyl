@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 module BlogCompiler (compile) where
 
 import Control.Monad (filterM, forM_)
@@ -9,10 +10,11 @@ import Data.Functor
 import Data.List (foldl', isSuffixOf)
 import Data.Map.Strict (Map, fromList, insert, toList, (!?))
 import Data.Maybe (fromMaybe)
+import Data.Text (splitOn)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import Data.Traversable (forM)
-import System.Directory (doesDirectoryExist, listDirectory)
+import System.Directory (createDirectory, createDirectoryIfMissing, doesDirectoryExist, listDirectory)
 import System.FilePath (joinPath, takeDirectory, takeFileName, (<.>), (</>))
 import System.IO (hPrint, hPutStrLn)
 import qualified System.IO as FD
@@ -37,9 +39,11 @@ import Text.Pandoc (
   readMarkdown,
   runIO,
   writeHtml5String,
+  writeMarkdown,
   writeNative,
   writeRST,
  )
+import Text.Pandoc.Writers (writeAsciiDoc)
 import TikzCompiler
 import Util.CliParsers (
   BuildOptions (..),
@@ -71,30 +75,40 @@ compile inDir outDir = do
     $ \post -> do
       let fileName = takeFileName post
       let dirName = takeDirectory post
-      let assetDir = dirName </> joinPath [dirName, "-assets"]
+      let outDirName = replace inDir outDir dirName
+      let assetDir = outDirName </> fileName ++ "-assets"
 
       putStrLn (" Compiling " ++ show fileName)
 
+      createDirectoryIfMissing True assetDir
+
       md <- TIO.readFile post
       result <- runIO $ readMarkdown def{readerExtensions = markdownExtensions} md
+
+      print result
 
       case result of
         Left error -> do
           hPutStrLn FD.stderr "Failed!"
           hPrint FD.stderr error
         Right ast -> do
-          let (parsedAst, tikzImages) = parseTikzBlocks ast assetDir
+          metadata <- parseMetadata ast
+
+          print metadata
+
+          let texPkgs = commaSeparatedToList $ fromMaybe "" $ metadata !? "packages"
+          let (parsedAst, tikzImages) = processTikzBlocks ast assetDir texPkgs
           let numImages = length tikzImages
 
           forM_ (zip [1 ..] tikzImages) $ \(idx, source) -> do
             putStrLn ("  Compiling Image " ++ show idx ++ "/" ++ show numImages)
             compileTikzImage source
 
-          html <- fromRight "" <$> runIO (writeHtml5String def{writerHTMLMathMethod = katexWriter} parsedAst)
+          html <-
+            fromRight ""
+              <$> runIO (writeHtml5String def{writerHTMLMathMethod = katexWriter} parsedAst)
+
           putStrLn "  Filling template"
-
-          metadata <- parseMetadata parsedAst
-
           let templateMetadata = metadata !? "template"
 
           case templateMetadata of
@@ -114,22 +128,27 @@ parseMetadata (Pandoc meta _) = fromList <$> parseMetadata_ (unMeta meta)
     let kvList = toList metaMap
     forM kvList $ \(k, v) -> case v of
       MetaInlines i -> do
-        parsedValue <- runIO $ writeNative def (Pandoc nullMeta [Plain i])
+        -- since we read from markdown, this should give us exactly what the user wrote
+        parsedValue <- runIO $ writeMarkdown def (Pandoc nullMeta [Plain i])
         return (k, fromRight "" parsedValue)
       _ -> return (k, "")
 
-parseTikzBlocks :: Pandoc -> FilePath -> (Pandoc, [TikzSource])
-parseTikzBlocks (Pandoc meta items) path =
+processTikzBlocks :: Pandoc -> FilePath -> [T.Text] -> (Pandoc, [TikzImage])
+processTikzBlocks (Pandoc meta items) path texPkgs =
   first (Pandoc meta)
-    $ foldl' insert ([], []) (zip [1 ..] items)
+    $ foldl' store ([], []) (zip [1 ..] items)
  where
-  insert (pandocItems, tikzItems) (idx, CodeBlock (_, ["tikz"], _) source) =
-    (tikzPlaceholder path idx : pandocItems, TikzSource source : tikzItems)
-  insert (pandocItems, tikzItems) (_, item) =
+  store (pandocItems, tikzItems) (idx, CodeBlock (_, "tikz" : libs, _) src) =
+    (tikzPlaceholder path idx : pandocItems, tikzImage src libs texPkgs idx : tikzItems)
+  store (pandocItems, tikzItems) (_, item) =
     (item : pandocItems, tikzItems)
+  tikzImage src lib pkg idx = TikzImage src lib pkg (tikzFilePath path idx)
 
 tikzPlaceholder :: FilePath -> Int -> Block
-tikzPlaceholder path idx = Para [Image ("tikz", [], []) [] (T.pack $ path </> show idx <.> "pdf", "")]
+tikzPlaceholder dir idx = Para [Image ("tikz", [], []) [] (T.pack $ tikzFilePath dir idx, "")]
+
+tikzFilePath :: FilePath -> Int -> FilePath
+tikzFilePath dir idx = dir </> show idx <.> "pdf"
 
 getMarkdownFiles :: FilePath -> IO [FilePath]
 getMarkdownFiles dir = do

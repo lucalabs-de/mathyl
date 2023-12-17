@@ -1,4 +1,14 @@
 \documentclass{standalone}
+{{#packages}}
+\usepackage{ {{.}} }
+{{/packages}}
+
+{{#libraries}}
+\usetikzlibrary{ {{.}} }
+{{/libraries}}
+
 \begin{document}
-  
+\begin{tikzpicture}
+  {{source}}
+\end{tikzpicture}
 \end{document}

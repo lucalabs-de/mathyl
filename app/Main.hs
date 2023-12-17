@@ -1,6 +1,3 @@
--- TODO: refactor this into multiple files
-{-# LANGUAGE OverloadedStrings #-}
-
 module Main where
 
 import BlogCompiler
