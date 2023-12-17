@@ -6,21 +6,27 @@ module Main where
 import Control.Monad (filterM, forM_)
 import Control.Monad.IO.Class (liftIO)
 import Data.Bifunctor
+import Data.Either (fromRight)
 import Data.Functor
 import Data.List (foldl', isSuffixOf)
+import Data.Map.Strict (Map, fromList, insert, toList, (!?))
+import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
+import Data.Traversable (forM)
 import System.Directory (doesDirectoryExist, listDirectory)
-import System.FilePath (takeDirectory, takeFileName, (<.>), (</>), joinPath)
-import System.IO.Temp (withSystemTempDirectory)
-import System.IO (hPutStrLn, hPrint)
+import System.FilePath (joinPath, takeDirectory, takeFileName, (<.>), (</>))
+import System.IO (hPrint, hPutStrLn)
 import qualified System.IO as FD
+import System.IO.Temp (withSystemTempDirectory)
 import Text.Pandoc (
-  Block (CodeBlock, Para),
+  Block (CodeBlock, Para, Plain),
   Extension (Ext_fenced_code_attributes, Ext_fenced_code_blocks, Ext_tex_math_dollars, Ext_yaml_metadata_block),
   Extensions,
   HTMLMathMethod (KaTeX),
   Inline (Image),
+  Meta (unMeta),
+  MetaValue (MetaInlines),
   Pandoc (Pandoc),
   PandocIO (PandocIO),
   ReaderOptions (readerExtensions),
@@ -28,10 +34,13 @@ import Text.Pandoc (
   def,
   extensionsFromList,
   handleError,
+  nullAttr,
+  nullMeta,
   readMarkdown,
   runIO,
   writeHtml5String,
-  writeRST, Meta (unMeta),
+  writeNative,
+  writeRST,
  )
 import Util.CliParsers (
   BuildOptions (..),
@@ -40,9 +49,8 @@ import Util.CliParsers (
   PreviewOptions (..),
   getCliOptions,
  )
-import Data.Map.Strict (Map, fromList, toList)
-
-newtype TikzSource = TikzSource T.Text deriving (Show)
+import Util.Helpers
+import TikzCompiler
 
 markdownExtensions :: Extensions
 markdownExtensions =
@@ -71,38 +79,47 @@ compile inDir outDir = do
 
       md <- TIO.readFile post
       result <- runIO $ readMarkdown def{readerExtensions = markdownExtensions} md
-      
-      case result of 
-        Left error -> do 
+
+      case result of
+        Left error -> do
           hPutStrLn FD.stderr "Failed!"
           hPrint FD.stderr error
         Right ast -> do
           let (parsedAst, tikzImages) = parseTikzBlocks ast assetDir
           let numImages = length tikzImages
 
-          forM_ (zip [1..] tikzImages) $ \(idx, source) -> do 
+          forM_ (zip [1 ..] tikzImages) $ \(idx, source) -> do
             putStrLn ("  Compiling Image " ++ show idx ++ "/" ++ show numImages)
-            compileTikzImage source 
+            compileTikzImage source
 
-          html <- runIO $ writeHtml5String def{writerHTMLMathMethod = katexWriter} parsedAst
+          html <- fromRight "" <$> runIO (writeHtml5String def{writerHTMLMathMethod = katexWriter} parsedAst)
           putStrLn "  Filling template"
 
           metadata <- parseMetadata parsedAst
 
-          fillTemplate (insert "content" html metadata) 
-          liftIO $ print html
+          let templateMetadata = metadata !? "template"
 
+          case templateMetadata of
+            Nothing -> hPutStrLn FD.stderr "  Missing template key in metadata"
+            Just templateFile -> do
+              fillTemplate (insert "content" html metadata) (dirName </> T.unpack templateFile)
 
       putStrLn "Done!"
 
-parseMetadata :: Pandoc -> IO (Map String String)
-parseMetadata (Pandoc meta _) = fromList parseMetadata_ (unMeta meta)
-  where parseMetadata_ metaMap = do let kvList = toList metaMap
-                                    forM kvList $ \(k, v) -> do 
-                                      
+fillTemplate :: Map T.Text T.Text -> FilePath -> IO ()
+fillTemplate = undefined
 
-compileTikzImage :: TikzSource -> IO ()
-compileTikzImage = undefined
+parseMetadata :: Pandoc -> IO (Map T.Text T.Text)
+parseMetadata (Pandoc meta _) = fromList <$> parseMetadata_ (unMeta meta)
+
+parseMetadata_ :: Map T.Text MetaValue -> IO [(T.Text, T.Text)]
+parseMetadata_ metaMap = do
+  let kvList = toList metaMap
+  forM kvList $ \(k, v) -> case v of
+    MetaInlines i -> do
+      parsedValue <- runIO $ writeNative def (Pandoc nullMeta [Plain i])
+      return (k, fromRight "" parsedValue)
+    _ -> return (k, "")
 
 tikzPlaceholder :: FilePath -> Int -> Block
 tikzPlaceholder path idx = Para [Image ("tikz", [], []) [] (T.pack $ path </> show idx <.> "pdf", "")]
@@ -123,9 +140,6 @@ getMarkdownFiles dir = do
   dirs <- filterM doesDirectoryExist contents
   let mdFiles = filter (endsIn [".md", ".markdown"]) contents
   (mdFiles ++) . concat <$> mapM getMarkdownFiles dirs
-
-endsIn :: [String] -> String -> Bool
-endsIn sfxs w = any (`isSuffixOf` w) sfxs
 
 display :: FilePath -> IO ()
 display = undefined

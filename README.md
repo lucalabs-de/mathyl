@@ -28,6 +28,6 @@ Compiles your blog and exposes it at 127.0.0.1:8080. Stores your blog files at [
 ## Implementation TODOs
 
 * [ ] Parse Markdown files, extract tikz drawings and metadata
-* [ ] Handle math & markdown compilation with pandoc
+* [x] Handle math & markdown compilation with pandoc
 * [ ] Handle tikZ drawings with locally installed version of latex and `standalone` package
 * [ ] Implement template filling with stache

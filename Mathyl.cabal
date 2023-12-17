@@ -19,6 +19,8 @@ executable Mathyl
     main-is:          Main.hs
 
     other-modules:    Util.CliParsers
+                    , Util.Helpers
+                    , TikzCompiler
                     , Paths_Mathyl
 
     build-depends:    base
