@@ -1,4 +1,6 @@
 \documentclass{standalone}
+
+\usepackage{tikz}
 {{#packages}}
 \usepackage{ {{.}} }
 {{/packages}}
@@ -7,7 +9,7 @@
 \usetikzlibrary{ {{.}} }
 {{/libraries}}
 
-\begin{document}
+\begin{dfocument}
 \begin{tikzpicture}
   {{source}}
 \end{tikzpicture}
