@@ -21,6 +21,7 @@ executable Mathyl
     other-modules:    Util.CliParsers
                     , Util.Helpers
                     , Util.Files
+                    , Util.FileHelpers
                     , TikzCompiler
                     , BlogCompiler
                     , Paths_Mathyl

@@ -8,12 +8,14 @@ import Data.Aeson (object)
 import Data.Aeson.Types ((.=))
 import qualified Data.Text as T
 import qualified Data.Text.Lazy.IO as TIO
-import System.FilePath (takeDirectory, (-<.>))
+import System.Directory (listDirectory, removeFile)
+import System.FilePath (takeBaseName, takeDirectory, takeExtension, takeFileName, (-<.>), (</>))
 import System.IO (hPrint, hPutStrLn)
 import qualified System.IO as FD (stderr)
 import System.Process (callCommand, readCreateProcessWithExitCode, shell)
 import Text.Mustache
 import qualified Text.Mustache.Compile.TH as TH
+import Util.FileHelpers
 import Util.Files (tikzTemplate)
 import Util.Helpers
 
@@ -41,8 +43,11 @@ compileTikzImage img =
               ]
     TIO.writeFile templateSrc filledTemplate
 
-    let compileCmd = shell $ "pdflatex -halt-on-error -output-directory=" ++ templateDir ++ " " ++ templateSrc
-    (exitCode, stdout, stderr) <- readCreateProcessWithExitCode compileCmd ""
+    let compileProcess = shell $ "pdflatex -halt-on-error -output-directory=" ++ templateDir ++ " " ++ templateSrc
+    (exitCode, stdout, stderr) <- readCreateProcessWithExitCode compileProcess ""
+
+    -- remove pdflatex compilation artifacts
+    deleteAllExceptFileExtensions templateDir [".pdf"] (takeBaseName $ t_file img)
 
     when (isErrorCode exitCode) $ do
       hPutStrLn FD.stderr "   Failed!"

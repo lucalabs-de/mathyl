@@ -14,7 +14,7 @@ import Data.Text (splitOn)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import Data.Traversable (forM)
-import System.Directory (createDirectory, createDirectoryIfMissing, doesDirectoryExist, listDirectory)
+import System.Directory (createDirectory, createDirectoryIfMissing, doesDirectoryExist, listDirectory, removeDirectoryRecursive)
 import System.FilePath (joinPath, takeDirectory, takeFileName, (<.>), (</>))
 import System.IO (hPrint, hPutStrLn)
 import qualified System.IO as FD
@@ -53,6 +53,7 @@ import Util.CliParsers (
   getCliOptions,
  )
 import Util.Helpers
+import Util.FileHelpers
 
 markdownExtensions :: Extensions
 markdownExtensions =
@@ -71,6 +72,10 @@ compile :: FilePath -> FilePath -> IO ()
 compile inDir outDir = do
   putStrLn "Generating blog..."
   posts <- getMarkdownFiles inDir
+  
+  -- clean workdir
+  removeDirectoryIfExists outDir
+
   forM_ posts
     $ \post -> do
       let fileName = takeFileName post
