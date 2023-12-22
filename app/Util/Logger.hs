@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Util.Logger (
   Logger,
@@ -12,9 +13,20 @@ module Util.Logger (
 import Control.Monad (when)
 import Control.Monad.IO.Class
 import Data.IORef (modifyIORef, newIORef, readIORef)
+import Data.List (intercalate)
+import qualified Data.Text as T
 import System.IO (hPutStrLn)
 import qualified System.IO as FD (stderr)
 import Prelude hiding (log)
+
+class Printable a where
+  toString :: a -> String
+
+instance Printable String where
+  toString = id
+
+instance Printable T.Text where
+  toString = T.unpack
 
 data Verbosity = Error | Message deriving (Eq, Ord, Show)
 
@@ -29,11 +41,11 @@ mkLogger = Logger 0
 mkChild :: Logger -> Logger
 mkChild l = Logger (depth l + 1) (verbosity l)
 
-message :: (MonadIO m) => Logger -> Verbosity -> String -> m ()
+message :: (MonadIO m, Printable s) => Logger -> Verbosity -> s -> m ()
 message l v s = liftIO
   $ when (v >= verbosity l) case v of
-    Error -> hPutStrLn FD.stderr (indent (depth l * 2) s)
-    Message -> putStrLn (indent (depth l * 2) s)
+    Error -> hPutStrLn FD.stderr (indent (depth l * 2) (toString s))
+    Message -> putStrLn (indent (depth l * 2) (toString s))
 
 logMsg :: (MonadIO m) => Logger -> String -> m ()
 logMsg logger = message logger Message
@@ -41,5 +53,8 @@ logMsg logger = message logger Message
 logError :: (MonadIO m) => Logger -> String -> m ()
 logError logger = message logger Error
 
+logErrorObj :: (MonadIO m, Show o) => Logger -> o -> m ()
+logErrorObj logger obj = message logger Error (show obj)
+
 indent :: Int -> String -> String
-indent n m = replicate n ' ' ++ m
+indent n m = intercalate ("\n" ++ replicate n ' ') $ lines m
