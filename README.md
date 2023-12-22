@@ -1,6 +1,6 @@
 # mathyl
 
-Yeah, yeah, I know -- it's another static site generator. Even though it seems that everyone has to write one, surprisingly none of them fit my requirements.
+Yeah, yeah, I know &ndash; it's another static site generator. Even though it seems that everyone has to write one, surprisingly none of them fit my requirements.
 
 I want to write a mathematics-heavy blog, so I need extensive LaTeX support &ndash; including the occasional tikZ drawing. Moreover, I want the actual writing to be as easy as possible, so Markdown based blog posts are a must. I would like to avoid any JavaScript in the output and don't want to touch Python with a 10-foot pole. 
 
