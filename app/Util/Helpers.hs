@@ -3,7 +3,7 @@
 module Util.Helpers where
 
 import Data.Char (isSpace)
-import Data.List (isSuffixOf)
+import Data.List (isSuffixOf, intercalate)
 import qualified Data.Text as T
 import System.Exit (ExitCode(ExitFailure))
 
@@ -17,6 +17,9 @@ replace :: String -> String -> String -> String
 replace needle replacement haystack =
   T.unpack
     $ T.replace (T.pack needle) (T.pack replacement) (T.pack haystack)
+
+indent :: Int -> String -> String
+indent n m = intercalate ("\n" ++ replicate n ' ') $ lines m
 
 isErrorCode :: ExitCode -> Bool
 isErrorCode (ExitFailure _) = True

@@ -1,14 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module Util.Logger (
-  Logger,
-  mkLogger,
-  mkChild,
-  logMsg,
-  logError,
-  Verbosity (..),
-) where
+module Util.Logger where
 
 import Control.Monad (when)
 import Control.Monad.IO.Class
@@ -18,6 +11,7 @@ import qualified Data.Text as T
 import System.IO (hPutStrLn)
 import qualified System.IO as FD (stderr)
 import Prelude hiding (log)
+import Util.Helpers (indent)
 
 class Printable a where
   toString :: a -> String
@@ -62,5 +56,3 @@ logErrorP logger = message logger Error
 logErrorObj :: (MonadIO m, Show o) => Logger -> o -> m ()
 logErrorObj logger obj = message logger Error (show obj)
 
-indent :: Int -> String -> String
-indent n m = intercalate ("\n" ++ replicate n ' ') $ lines m
