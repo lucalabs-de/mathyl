@@ -22,6 +22,8 @@ executable Mathyl
                     , Util.Helpers
                     , Util.Files
                     , Util.FileHelpers
+                    , Util.Logger
+                    , Templates
                     , TikzCompiler
                     , BlogCompiler
                     , Paths_Mathyl
@@ -39,5 +41,6 @@ executable Mathyl
                     , file-embed
                     , bytestring
                     , process
+                    , megaparsec
     hs-source-dirs:   app
     default-language: Haskell2010

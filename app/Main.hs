@@ -3,20 +3,21 @@ module Main where
 import BlogCompiler
 import System.IO.Temp (withSystemTempDirectory)
 import Util.CliParsers
+import Util.Logger
 
 display :: FilePath -> IO ()
 display = undefined
 
-run :: Command -> IO ()
-run (Build opts) = compile (bInDir opts) (bOutDir opts)
-run (Preview opts) = case pOutDir opts of
-  Just outDir -> runMathyl (pInDir opts) outDir
-  Nothing -> withSystemTempDirectory "mathyl" (runMathyl $ pInDir opts)
+run :: Logger -> Command -> IO ()
+run l (Build opts) = compile l (bInDir opts) (bOutDir opts)
+run l (Preview opts) = case pOutDir opts of
+  Just outDir -> runMathyl l (pInDir opts) outDir
+  Nothing -> withSystemTempDirectory "mathyl" (runMathyl l $ pInDir opts)
 
-runMathyl :: FilePath -> FilePath -> IO ()
-runMathyl inDir outDir = compile inDir outDir >> display outDir
+runMathyl :: Logger -> FilePath -> FilePath -> IO ()
+runMathyl l inDir outDir = compile l inDir outDir >> display outDir
 
 main :: IO ()
 main = do
   opts <- getCliOptions
-  run (optCommand opts)
+  run (mkLogger Message) (optCommand opts)

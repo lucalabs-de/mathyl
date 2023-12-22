@@ -2,7 +2,7 @@ module Util.FileHelpers where
 
 import Control.Exception (catch, throwIO)
 import System.Directory (listDirectory, removeDirectoryRecursive, removeFile)
-import System.FilePath (takeBaseName, takeExtension, (</>))
+import System.FilePath (joinPath, normalise, splitDirectories, takeBaseName, takeExtension, (</>))
 import System.IO.Error (isDoesNotExistError)
 
 deleteAllExceptFileExtensions :: FilePath -> [String] -> String -> IO ()
@@ -21,3 +21,11 @@ removeDirectoryIfExists dir = removeDirectoryRecursive dir `catch` handleExists
   handleExists e
     | isDoesNotExistError e = return ()
     | otherwise = throwIO e
+
+normalizeFilePath :: FilePath -> FilePath
+normalizeFilePath path = joinPath $ removeDetours $ splitDirectories $ normalise path
+ where
+  removeDetours (".." : dirs) = ".." : removeDetours dirs
+  removeDetours (a : ".." : dirs) = removeDetours dirs
+  removeDetours (a : dirs) = a : removeDetours dirs
+  removeDetours [] = []

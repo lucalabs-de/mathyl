@@ -3,9 +3,14 @@
 module Util.Helpers where
 
 import Data.Char (isSpace)
-import Data.List (isSuffixOf, intercalate)
+import Data.IORef (newIORef, readIORef, writeIORef)
+import Data.List (intercalate, isSuffixOf)
+import Data.Map ((!?))
+import qualified Data.Map as Map
 import qualified Data.Text as T
-import System.Exit (ExitCode(ExitFailure))
+import GHC.IO.Unsafe (unsafePerformIO)
+import System.Exit (ExitCode (ExitFailure))
+import Text.Mustache (PName (PName))
 
 endsIn :: [String] -> String -> Bool
 endsIn sfxs w = any (`isSuffixOf` w) sfxs
@@ -25,3 +30,24 @@ indent n m = indentChars ++ intercalate ("\n" ++ indentChars) (lines m)
 isErrorCode :: ExitCode -> Bool
 isErrorCode (ExitFailure _) = True
 isErrorCode _ = False
+
+memoizeIO :: (Ord a) => (a -> IO b) -> IO (a -> IO b)
+memoizeIO f = do
+  c <- newIORef Map.empty
+  let f' x = do
+        cache <- readIORef c
+        let memoized = cache !? x
+        case memoized of
+          Just m -> return m
+          Nothing -> do
+            y <- f x
+            writeIORef c (Map.insert x y cache)
+            return y
+  return f'
+
+-- This is not great, maybe try to find an alternative solution
+memoize :: (Ord a) => (a -> IO b) -> (a -> IO b)
+memoize = unsafePerformIO . memoizeIO
+
+toPName :: String -> PName
+toPName = PName . T.pack
