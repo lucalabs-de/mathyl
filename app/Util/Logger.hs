@@ -1,43 +1,45 @@
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE Rank2Types #-}
 
-module Util.Logger where
+module Util.Logger (
+  Logger,
+  mkLogger,
+  mkChild,
+  logMsg,
+  logError,
+  Verbosity (..),
+) where
 
 import Control.Monad (when)
 import Control.Monad.IO.Class
 import Data.IORef (modifyIORef, newIORef, readIORef)
 import System.IO (hPutStrLn)
 import qualified System.IO as FD (stderr)
+import Prelude hiding (log)
 
 data Verbosity = Error | Message deriving (Eq, Ord, Show)
 
 data Logger = Logger
-  { string :: forall m. (MonadIO m) => Verbosity -> String -> m ()
-  , header :: forall m. (MonadIO m) => Verbosity -> String -> m ()
+  { depth :: Int
+  , verbosity :: Verbosity
   }
 
-mkLogger :: Verbosity -> IO Logger
-mkLogger verbosity = do
-  indentation <- newIORef 0
+mkLogger :: Verbosity -> Logger
+mkLogger = Logger 0
 
-  let msg s = do
-        i <- readIORef indentation
-        putStrLn $ indent i s
-  let err s = do
-        i <- readIORef indentation
-        hPutStrLn FD.stderr $ indent i s
+mkChild :: Logger -> Logger
+mkChild l = Logger (depth l + 1) (verbosity l)
 
-  let log v s = when
-        (verbosity >= v)
-        case v of
-          Error -> err s
-          Message -> msg s
+message :: (MonadIO m) => Logger -> Verbosity -> String -> m ()
+message l v s = liftIO
+  $ when (v >= verbosity l) case v of
+    Error -> hPutStrLn FD.stderr (indent (depth l * 2) s)
+    Message -> putStrLn (indent (depth l * 2) s)
 
-  return
-    $ Logger
-      { string = \v s -> liftIO $ log v s
-      , header = \v s -> liftIO $ log v s >> modifyIORef indentation (+ 2)
-      }
+logMsg :: (MonadIO m) => Logger -> String -> m ()
+logMsg logger = message logger Message
+
+logError :: (MonadIO m) => Logger -> String -> m ()
+logError logger = message logger Error
 
 indent :: Int -> String -> String
-indent n m = repeat ' ' ++ m
+indent n m = replicate n ' ' ++ m
