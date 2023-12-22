@@ -19,7 +19,8 @@ replace needle replacement haystack =
     $ T.replace (T.pack needle) (T.pack replacement) (T.pack haystack)
 
 indent :: Int -> String -> String
-indent n m = intercalate ("\n" ++ replicate n ' ') $ lines m
+indent n m = indentChars ++ intercalate ("\n" ++ indentChars) (lines m)
+  where indentChars = replicate n ' '
 
 isErrorCode :: ExitCode -> Bool
 isErrorCode (ExitFailure _) = True
