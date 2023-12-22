@@ -10,7 +10,6 @@ import Data.List (intercalate)
 import qualified Data.Text as T
 import System.IO (hPutStrLn)
 import qualified System.IO as FD (stderr)
-import Prelude hiding (log)
 import Util.Helpers (indent)
 
 class Printable a where
@@ -22,12 +21,18 @@ instance Printable String where
 instance Printable T.Text where
   toString = T.unpack
 
-data Verbosity = Error | Message deriving (Eq, Ord, Show)
+data Verbosity = Message | Error deriving (Eq, Show)
+
+instance Ord Verbosity where
+  (<=) _ Error = True
+  (<=) Message _ = True
+  (<=) _ _ = False
 
 data Logger = Logger
   { depth :: Int
   , verbosity :: Verbosity
   }
+  deriving (Show)
 
 mkLogger :: Verbosity -> Logger
 mkLogger = Logger 0
@@ -55,4 +60,3 @@ logErrorP logger = message logger Error
 
 logErrorObj :: (MonadIO m, Show o) => Logger -> o -> m ()
 logErrorObj logger obj = message logger Error (show obj)
-
