@@ -50,8 +50,14 @@ message l v s = liftIO
 logMsg :: (MonadIO m) => Logger -> String -> m ()
 logMsg logger = message logger Message
 
+logMsgP :: (MonadIO m, Printable s) => Logger -> s -> m ()
+logMsgP logger = message logger Message
+
 logError :: (MonadIO m) => Logger -> String -> m ()
 logError logger = message logger Error
+
+logErrorP :: (MonadIO m, Printable s) => Logger -> s -> m ()
+logErrorP logger = message logger Error
 
 logErrorObj :: (MonadIO m, Show o) => Logger -> o -> m ()
 logErrorObj logger obj = message logger Error (show obj)
