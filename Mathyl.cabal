@@ -45,3 +45,4 @@ executable Mathyl
                     , megaparsec
     hs-source-dirs:   app
     default-language: Haskell2010
+    ghc-options: -Wall
