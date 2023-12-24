@@ -22,10 +22,11 @@ executable Mathyl
                     , Util.Helpers
                     , Util.Files
                     , Util.FileHelpers
-                    , Util.Logger
-                    , Templates
-                    , TikzCompiler
-                    , BlogCompiler
+                    , Logging.Logger
+                    , Compilers.Templates
+                    , Compilers.TikzCompiler
+                    , Compilers.BlogCompiler
+                    , Compilers.Post
                     , Paths_Mathyl
 
     build-depends:    base

@@ -1,9 +1,9 @@
 module Main where
 
-import BlogCompiler
+import Compilers.BlogCompiler
+import Logging.Logger
 import System.IO.Temp (withSystemTempDirectory)
 import Util.CliParsers
-import Util.Logger
 
 display :: FilePath -> IO ()
 display = undefined

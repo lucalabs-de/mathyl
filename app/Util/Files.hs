@@ -9,5 +9,3 @@ import Data.Text.Encoding (decodeUtf8)
 
 tikzTemplate :: T.Text
 tikzTemplate = decodeUtf8 $(embedFile "assets/template/figure-template.tex")
-
-

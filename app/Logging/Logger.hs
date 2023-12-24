@@ -1,7 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module Util.Logger where
+module Logging.Logger where
 
 import Control.Monad (when)
 import Control.Monad.IO.Class
@@ -41,8 +41,8 @@ mkChild :: Logger -> Logger
 mkChild l = Logger (depth l + 1) (verbosity l)
 
 message :: (MonadIO m, Printable s) => Logger -> Verbosity -> s -> m ()
-message l v s = liftIO
-  $ when (v >= verbosity l) case v of
+message l v s = liftIO $
+  when (v >= verbosity l) case v of
     Error -> hPutStrLn FD.stderr (indent (depth l * 2) (toString s))
     Message -> putStrLn (indent (depth l * 2) (toString s))
 
