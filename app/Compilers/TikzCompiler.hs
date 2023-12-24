@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module TikzCompiler where
+module Compilers.TikzCompiler where
 
 import Control.Monad (when)
 import Data.Aeson (object)
