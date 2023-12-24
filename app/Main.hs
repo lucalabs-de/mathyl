@@ -3,7 +3,7 @@ module Main where
 import Compilers.BlogCompiler
 import Logging.Logger
 import System.IO.Temp (withSystemTempDirectory)
-import Util.CliParsers
+import Parsers.CliParser
 
 display :: FilePath -> IO ()
 display = undefined
