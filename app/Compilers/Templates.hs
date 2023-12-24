@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wunused-imports #-}
-
 module Compilers.Templates (fillTemplate) where
 
 import Compilers.Post (PostInfo (pOutputFile))
