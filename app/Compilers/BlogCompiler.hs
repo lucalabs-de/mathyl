@@ -2,6 +2,7 @@
 
 module Compilers.BlogCompiler (compile) where
 
+import Compilers.Post (PostInfo (..))
 import Compilers.Templates
 import Compilers.TikzCompiler
 import Control.Monad (filterM, forM_)
@@ -43,7 +44,6 @@ import Text.Pandoc (
  )
 import Util.FileHelpers
 import Util.Helpers
-import Compilers.Post (PostInfo(..))
 
 markdownExtensions :: Extensions
 markdownExtensions =
@@ -108,7 +108,7 @@ renderAst logger post ast = do
 
   forM_ (zip [1 ..] tikzImages) $ \(idx, source) -> do
     logMsg logger $ "Compiling Image " ++ show idx ++ "/" ++ show numImages
-    compileTikzImage source
+    compileTikzImage (mkChild logger) source
 
   html <-
     fromRight ""
@@ -122,9 +122,9 @@ renderAst logger post ast = do
     Just templateFile ->
       fillTemplate
         (mkChild logger)
+        post
         (insert "content" html metadata)
         (pInputDir post </> T.unpack templateFile)
-        post
 
 -- | Parses the Markdown metadata block and returns it as a map
 parseMetadata :: Pandoc -> IO (Map T.Text T.Text)
