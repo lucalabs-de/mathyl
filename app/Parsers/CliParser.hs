@@ -1,4 +1,4 @@
-module Util.CliParsers where
+module Parsers.CliParser where
 
 import Data.Version (showVersion)
 import Options.Applicative (

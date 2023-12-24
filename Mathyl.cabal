@@ -18,8 +18,7 @@ extra-source-files:
 executable Mathyl
     main-is:          Main.hs
 
-    other-modules:    Util.CliParsers
-                    , Util.Helpers
+    other-modules:    Util.Helpers
                     , Util.Files
                     , Util.FileHelpers
                     , Logging.Logger
@@ -27,6 +26,8 @@ executable Mathyl
                     , Compilers.TikzCompiler
                     , Compilers.BlogCompiler
                     , Compilers.Post
+                    , Parsers.CliParser
+                    , Parsers.MustachePartialParser
                     , Paths_Mathyl
 
     build-depends:    base
