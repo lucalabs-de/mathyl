@@ -93,9 +93,9 @@ compileFile logger inDir outDir post = do
   result <- runIO $ readMarkdown def{readerExtensions = markdownExtensions} md
 
   case result of
-    Left error -> do
+    Left bundle -> do
       logError logger "Failed!"
-      logErrorP logger (renderError error)
+      logErrorP logger (renderError bundle)
     Right ast -> renderAst (mkChild logger) postInfo ast
 
 renderAst :: Logger -> PostInfo -> Pandoc -> IO ()
