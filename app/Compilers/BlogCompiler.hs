@@ -16,7 +16,7 @@ import qualified Data.Text.IO as TIO
 import Data.Traversable (forM)
 import Logging.Logger
 import System.Directory (createDirectoryIfMissing, doesDirectoryExist, listDirectory)
-import System.FilePath (takeBaseName, takeDirectory, takeFileName, (<.>), (</>))
+import System.FilePath (takeBaseName, takeDirectory, (<.>), (</>), (-<.>))
 import Text.Pandoc (
   Block (CodeBlock, Para, Plain),
   Extension (
@@ -106,7 +106,7 @@ renderAst logger post ast = do
   let (parsedAst, tikzImages) = processTikzBlocks ast (pAssetDir post) texPkgs
   let numImages = length tikzImages
 
-  forM_ (zip [1 ..] tikzImages) $ \(idx, source) -> do
+  forM_ (zip [1 :: Int ..] tikzImages) $ \(idx, source) -> do
     logMsg logger $ "Compiling Image " ++ show idx ++ "/" ++ show numImages
     compileTikzImage (mkChild logger) source
 
