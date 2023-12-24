@@ -2,7 +2,6 @@
 
 module Util.Files where
 
-import Data.ByteString (ByteString)
 import Data.FileEmbed (embedFile)
 import qualified Data.Text as T
 import Data.Text.Encoding (decodeUtf8)

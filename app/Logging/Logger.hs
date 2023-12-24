@@ -5,8 +5,6 @@ module Logging.Logger where
 
 import Control.Monad (when)
 import Control.Monad.IO.Class
-import Data.IORef (modifyIORef, newIORef, readIORef)
-import Data.List (intercalate)
 import qualified Data.Text as T
 import System.IO (hPutStrLn)
 import qualified System.IO as FD (stderr)
