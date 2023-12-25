@@ -26,6 +26,6 @@ normalizeFilePath :: FilePath -> FilePath
 normalizeFilePath path = joinPath $ removeDetours $ splitDirectories $ normalise path
  where
   removeDetours (".." : dirs) = ".." : removeDetours dirs
-  removeDetours (a : ".." : dirs) = removeDetours dirs
+  removeDetours (_ : ".." : dirs) = removeDetours dirs
   removeDetours (a : dirs) = a : removeDetours dirs
   removeDetours [] = []
