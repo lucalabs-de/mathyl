@@ -44,6 +44,7 @@ executable Mathyl
                     , bytestring
                     , process
                     , megaparsec
+                    , parser-combinators
     hs-source-dirs:   app
     default-language: Haskell2010
     ghc-options: -Wall
