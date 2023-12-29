@@ -4,7 +4,7 @@ module Util.Helpers where
 
 import Data.Char (isSpace)
 import Data.IORef (newIORef, readIORef, writeIORef)
-import Data.List (intercalate, isSuffixOf)
+import Data.List (dropWhileEnd, intercalate, isSuffixOf)
 import Data.Map ((!?))
 import qualified Data.Map as Map
 import qualified Data.Text as T
@@ -15,17 +15,21 @@ import Text.Mustache (PName (PName))
 endsIn :: [String] -> String -> Bool
 endsIn sfxs w = any (`isSuffixOf` w) sfxs
 
+trim :: String -> String
+trim = dropWhile isSpace . dropWhileEnd isSpace
+
 commaSeparatedToList :: T.Text -> [T.Text]
 commaSeparatedToList input = T.splitOn "," $ T.pack $ filter (not . isSpace) (T.unpack input)
 
 replace :: String -> String -> String -> String
 replace needle replacement haystack =
-  T.unpack
-    $ T.replace (T.pack needle) (T.pack replacement) (T.pack haystack)
+  T.unpack $
+    T.replace (T.pack needle) (T.pack replacement) (T.pack haystack)
 
 indent :: Int -> String -> String
 indent n m = indentChars ++ intercalate ("\n" ++ indentChars) (lines m)
-  where indentChars = replicate n ' '
+ where
+  indentChars = replicate n ' '
 
 isErrorCode :: ExitCode -> Bool
 isErrorCode (ExitFailure _) = True
