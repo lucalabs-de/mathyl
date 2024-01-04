@@ -2,6 +2,7 @@
 title: Example Post
 published: 2023-11-11
 packages: amsmath, braket
+template: ../templates/post.html
 ---
 
 # This is a test Post
