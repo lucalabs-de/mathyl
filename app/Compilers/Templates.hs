@@ -1,3 +1,5 @@
+{-# LANGUAGE BlockArguments #-}
+
 module Compilers.Templates (fillTemplate) where
 
 import Compilers.Post (PostInfo (pOutputFile))
@@ -20,8 +22,6 @@ import Util.Helpers (memoize, toPName, trim)
 
 fillTemplate :: Logger -> PostInfo -> Map T.Text T.Text -> FilePath -> IO ()
 fillTemplate logger post templateMap templateFile = do
-  print templateMap
-  print $ toJSON templateMap
   compiledTemplate <- getFullTemplate logger templateFile
   let filledTemplate = renderMustache compiledTemplate (toJSON templateMap)
   LTIO.writeFile (pOutputFile post) filledTemplate
@@ -33,7 +33,7 @@ getFullTemplate logger path =
     let cleanPath = normalizeFilePath $ trim path
 
     fileExists <- doesFileExist cleanPath
-    unless fileExists $ do
+    unless fileExists do
       logError logger $ "Could not find template " ++ cleanPath
       error "Failed!"
 
@@ -63,9 +63,7 @@ compileTemplateFile logger path = do
 
 getCompiledTemplateByFile :: FilePath -> IO (Either (ParseErrorBundle T.Text Void) MT.Template)
 getCompiledTemplateByFile =
-  memoize
-    ( \path -> do
-        templateSrc <- TIO.readFile path
-        let identifier = toPName path
-        return $ compileMustacheText identifier templateSrc
-    )
+  memoize \path -> do
+    templateSrc <- TIO.readFile path
+    let identifier = toPName path
+    return $ compileMustacheText identifier templateSrc
