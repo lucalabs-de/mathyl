@@ -2,19 +2,30 @@
 
 module Conversion.PdfConverter (convertPdfToSvg, convertPdfToPng) where
 
+import Control.Monad (when)
 import qualified Data.Text as T
-import GI.Cairo.Render (Format (FormatARGB32), Render, Surface, fill, rectangle, renderWith, setSourceRGBA, showPage, withImageSurface, surfaceWriteToPNG)
+import GI.Cairo.Render (
+  Format (FormatARGB32),
+  Surface,
+  fill,
+  rectangle,
+  renderWith,
+  setSourceRGBA,
+  showPage,
+  surfaceWriteToPNG,
+  withImageSurface,
+ )
 import GI.Cairo.Render.Connector (toRender)
 import GI.Poppler
 import System.Exit (ExitCode (..))
 import System.FilePath ((-<.>))
-import System.Process (callCommand, readCreateProcessWithExitCode, shell)
+import System.Process (readCreateProcessWithExitCode, shell)
 import Util.FileHelpers (pathToFileScheme)
+import Util.Helpers (isErrorCode)
 import Util.MathHelpers (scaleToPixelHeight)
 
 -- This should work, exactly like convert to png does. It seems that
 -- gi-cairo-render is broken. Unfortunately the maintainer is no longer active.
-
 -- convertPdfToSvg :: FilePath -> IO ()
 -- convertPdfToSvg inPath = do
 --   absPath <- T.pack <$> pathToFileScheme inPath
@@ -31,7 +42,12 @@ import Util.MathHelpers (scaleToPixelHeight)
 convertPdfToSvg :: FilePath -> IO ()
 convertPdfToSvg inPath = do
   let outPath = inPath -<.> ".svg"
-  callCommand =<< svgConversionCommand inPath outPath
+
+  proc <- shell <$> svgConversionCommand inPath outPath
+  (exitCode, _, _) <- readCreateProcessWithExitCode proc ""
+
+  -- TODO return the exception as Either instead
+  when (isErrorCode exitCode) $ error "error occured on svg creation"
 
 svgConversionCommand :: FilePath -> FilePath -> IO String
 svgConversionCommand inPath outPath = do
@@ -42,7 +58,7 @@ svgConversionCommand inPath outPath = do
   (exitCode2, _, _) <- readCreateProcessWithExitCode proc2 ""
 
   case (exitCode1, exitCode2) of
-    (ExitSuccess, _) -> return $ "dvisvgm --pdf " ++ inPath
+    (ExitSuccess, _) -> return $ "dvisvgm --pdf " ++ inPath ++ " -o " ++ outPath
     (_, ExitSuccess) -> return $ "pdf2svg " ++ inPath ++ " " ++ outPath
     _ -> error "No PDF -> SVG conversion tool available"
 
@@ -57,8 +73,11 @@ convertPdfToPng inPath pngHeight = do
 
   let outPath = inPath -<.> ".svg"
 
-  withImageSurface FormatARGB32 pngHeight pngWidth 
-    \surface -> do 
+  withImageSurface
+    FormatARGB32
+    pngHeight
+    pngWidth
+    \surface -> do
       clearSurface surface pngHeight pngWidth
       renderPdfToSurface page surface
       surfaceWriteToPNG surface outPath
