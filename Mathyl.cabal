@@ -21,6 +21,7 @@ executable Mathyl
     other-modules:    Util.Helpers
                     , Util.Files
                     , Util.FileHelpers
+                    , Util.MathHelpers
                     , Logging.Logger
                     , Compilers.Templates
                     , Compilers.TikzCompiler
