@@ -8,39 +8,44 @@ import Options.Applicative (
   header,
   help,
   helper,
+  hsubparser,
   info,
   infoOption,
   long,
   metavar,
   optional,
   progDesc,
+  short,
   strArgument,
-  subparser,
+  switch,
  )
 import Paths_Mathyl (version)
+import Settings.Options
 
-newtype Options = Options {optCommand :: Command}
-  deriving Show 
+newtype CliOptions = Options {optCommand :: Command}
+  deriving (Show)
 
 data Command = Build BuildOptions | Preview PreviewOptions
-  deriving Show
+  deriving (Show)
 
 data BuildOptions = BuildOptions
   { bInDir :: String
   , bOutDir :: String
+  , bSettings :: UserDefinedSettings
   }
-  deriving Show
+  deriving (Show)
 data PreviewOptions = PreviewOptions
   { pInDir :: String
   , pOutDir :: Maybe String
+  , pSettings :: UserDefinedSettings
   }
-  deriving Show
+  deriving (Show)
 
 commandParser :: Parser Command
 commandParser =
-  subparser
-    $ command "build" (info buildCommand (progDesc "Start the build process"))
-    <> command "preview" (info previewCommand (progDesc "Build and run blog at 127.0.0.1:8080"))
+  hsubparser $
+    command "build" (info buildCommand (progDesc "Build blog"))
+      <> command "preview" (info previewCommand (progDesc "Build and run blog at 127.0.0.1:8080"))
 
 buildCommand :: Parser Command
 buildCommand = Build <$> buildOptionsParser
@@ -52,6 +57,31 @@ buildOptionsParser =
       (metavar "IN-DIR" <> help "Directory of your template files")
     <*> strArgument
       (metavar "OUT-DIR" <> help "Output directory for your blog files")
+    <*> settingsParser
+
+settingsParser :: Parser UserDefinedSettings
+settingsParser =
+  UserDefinedSettings
+    <$> switch
+      ( help "Compile tikZ to SVGs instead of PNGs. Requires pdf2svg or dvisvgm to be installed"
+          <> long "use-svgs"
+          <> short 's'
+      )
+    <*> switch
+      ( help "Use server-side rendering for LaTeX formulas"
+          <> long "server-render"
+          <> short 'r'
+      )
+    <*> switch
+      ( help "Continue compiling on errors"
+          <> long "continue-on-errors"
+          <> short 'e'
+      )
+    <*> switch
+      ( help "Only log errors"
+          <> long "quiet"
+          <> short 'q'
+      )
 
 previewCommand :: Parser Command
 previewCommand = Preview <$> previewOptionsParser
@@ -63,15 +93,16 @@ previewOptionsParser =
       (metavar "IN-DIR" <> help "Directory of your template files")
     <*> (optional . strArgument)
       (metavar "OUT-DIR" <> help "Optional output directory for your blog files")
+    <*> settingsParser
 
 versionOption :: Parser (a -> a)
 versionOption = infoOption ("mathyl " ++ showVersion version) (long "version" <> help "Show version")
 
-optionsParser :: Parser Options
+optionsParser :: Parser CliOptions
 optionsParser = Options <$> commandParser
 
-getCliOptions :: IO Options
+getCliOptions :: IO CliOptions
 getCliOptions =
-  execParser
-    $ info (helper <*> versionOption <*> optionsParser)
-    $ header ("mathyl" ++ showVersion version)
+  execParser $
+    info (helper <*> versionOption <*> optionsParser) $
+      header ("mathyl" ++ showVersion version)

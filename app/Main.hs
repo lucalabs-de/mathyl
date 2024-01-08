@@ -2,22 +2,31 @@ module Main where
 
 import Compilers.BlogCompiler
 import Logging.Logger
-import System.IO.Temp (withSystemTempDirectory)
 import Parsers.CliParser
+import Settings.Options (Settings, fromUserDefinedSettings)
+import System.IO.Temp (withSystemTempDirectory)
 
 display :: FilePath -> IO ()
 display = undefined
 
-run :: Logger -> Command -> IO ()
-run l (Build opts) = compile l (bInDir opts) (bOutDir opts)
-run l (Preview opts) = case pOutDir opts of
-  Just outDir -> runMathyl l (pInDir opts) outDir
-  Nothing -> withSystemTempDirectory "mathyl" (runMathyl l $ pInDir opts)
+run :: Logger -> Settings -> Command -> IO ()
+run l s (Build opts) = compile l s (bInDir opts) (bOutDir opts)
+run l s (Preview opts) = case pOutDir opts of
+  Just outDir -> runMathyl l s (pInDir opts) outDir
+  Nothing -> withSystemTempDirectory "mathyl" (runMathyl l s $ pInDir opts)
 
-runMathyl :: Logger -> FilePath -> FilePath -> IO ()
-runMathyl l inDir outDir = compile l inDir outDir >> display outDir
+runMathyl :: Logger -> Settings -> FilePath -> FilePath -> IO ()
+runMathyl l s inDir outDir = compile l s inDir outDir >> display outDir
+
+buildSettings :: Command -> Settings
+buildSettings (Build opts) = fromUserDefinedSettings $ bSettings opts
+buildSettings (Preview opts) = fromUserDefinedSettings $ pSettings opts
 
 main :: IO ()
 main = do
   opts <- getCliOptions
-  run (mkLogger Message) (optCommand opts)
+
+  let command = optCommand opts
+  let settings = buildSettings command
+
+  run (mkLogger Message) settings command

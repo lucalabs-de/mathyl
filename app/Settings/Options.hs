@@ -1,17 +1,37 @@
 module Settings.Options where
 
-data Options = Options
+data Settings = Settings
   { oDefaultPngHeightInPx :: Int
-  , oServerSideRendering :: Bool -- TODO implement
   , oUseSvgs :: Bool
+  , oServerSideRendering :: Bool -- TODO implement
   , oContinueOnErrors :: Bool -- TODO implement
+  , oQuiet :: Bool
   }
+  deriving (Show)
 
-defaultSettings :: Options
+data UserDefinedSettings = UserDefinedSettings
+  { uUseSvgs :: Bool
+  , uServerSideRendering :: Bool
+  , uContinueOnErrors :: Bool
+  , uQuiet :: Bool
+  }
+  deriving (Show)
+
+defaultSettings :: Settings
 defaultSettings =
-  Options
+  Settings
     { oDefaultPngHeightInPx = 200
     , oServerSideRendering = False
     , oUseSvgs = False
     , oContinueOnErrors = False
+    , oQuiet = True
+    }
+
+fromUserDefinedSettings :: UserDefinedSettings -> Settings
+fromUserDefinedSettings u =
+  defaultSettings
+    { oUseSvgs = uUseSvgs u
+    , oServerSideRendering = uServerSideRendering u
+    , oContinueOnErrors = uContinueOnErrors u
+    , oQuiet = uQuiet u
     }

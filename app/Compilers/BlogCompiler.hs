@@ -44,6 +44,7 @@ import Text.Pandoc (
  )
 import Util.FileHelpers
 import Util.Helpers
+import Settings.Options (Settings)
 
 markdownExtensions :: Extensions
 markdownExtensions =
@@ -57,8 +58,8 @@ markdownExtensions =
 katexWriter :: HTMLMathMethod
 katexWriter = KaTeX "vendor/katex"
 
-compile :: Logger -> FilePath -> FilePath -> IO ()
-compile logger inDir outDir = do
+compile :: Logger -> Settings -> FilePath -> FilePath -> IO ()
+compile logger settings inDir outDir = do
   logMsg logger "Generating blog..."
 
   removeDirectoryIfExists outDir -- clean workdir
