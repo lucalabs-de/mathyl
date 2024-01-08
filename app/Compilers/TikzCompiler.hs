@@ -9,13 +9,14 @@ import Data.Aeson.Types ((.=))
 import qualified Data.Text as T
 import qualified Data.Text.Lazy.IO as TIO
 import Logging.Logger
-import System.FilePath (takeBaseName, takeDirectory, (-<.>))
+import System.FilePath (takeDirectory, (-<.>), takeBaseName)
 import System.Process (readCreateProcessWithExitCode, shell)
 import Text.Mustache
 import qualified Text.Mustache.Compile.TH as TH
 import Util.FileHelpers
 import Util.Files (tikzTemplate)
 import Util.Helpers
+import Conversion.PdfConverter (convertPdfToSvg)
 
 data TikzImage = TikzImage
   { t_source :: T.Text
@@ -44,8 +45,10 @@ compileTikzImage logger img =
     let compileProcess = shell $ "pdflatex -halt-on-error -output-directory=" ++ templateDir ++ " " ++ templateSrc
     (exitCode, stdout, _) <- readCreateProcessWithExitCode compileProcess ""
 
-    -- remove pdflatex compilation artifacts
-    deleteAllExceptFileExtensions templateDir [".pdf"] (takeBaseName $ t_file img)
+    let imagePath = t_file img -<.> ".pdf"
+
+    convertPdfToSvg imagePath
+    deleteAllExceptFileExtensions templateDir [".svg"] (takeBaseName $ t_file img)
 
     when (isErrorCode exitCode) $ do
       logError logger "Failed!"

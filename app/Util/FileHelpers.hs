@@ -1,8 +1,20 @@
 module Util.FileHelpers where
 
 import Control.Exception (catch, throwIO)
-import System.Directory (listDirectory, removeDirectoryRecursive, removeFile)
-import System.FilePath (joinPath, normalise, splitDirectories, takeBaseName, takeExtension, (</>))
+import System.Directory (
+  listDirectory,
+  makeAbsolute,
+  removeDirectoryRecursive,
+  removeFile,
+ )
+import System.FilePath (
+  joinPath,
+  normalise,
+  splitDirectories,
+  takeBaseName,
+  takeExtension,
+  (</>),
+ )
 import System.IO.Error (isDoesNotExistError)
 
 deleteAllExceptFileExtensions :: FilePath -> [String] -> String -> IO ()
@@ -29,3 +41,6 @@ normalizeFilePath path = joinPath $ removeDetours $ splitDirectories $ normalise
   removeDetours (_ : ".." : dirs) = removeDetours dirs
   removeDetours (a : dirs) = a : removeDetours dirs
   removeDetours [] = []
+
+pathToFileScheme :: FilePath -> IO String
+pathToFileScheme path = ("file://" ++) <$> makeAbsolute path

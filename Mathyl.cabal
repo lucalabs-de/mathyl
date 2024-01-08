@@ -26,6 +26,7 @@ executable Mathyl
                     , Compilers.TikzCompiler
                     , Compilers.BlogCompiler
                     , Compilers.Post
+                    , Conversion.PdfConverter
                     , Parsers.CliParser
                     , Parsers.MustachePartialParser
                     , Paths_Mathyl
@@ -45,6 +46,11 @@ executable Mathyl
                     , process
                     , megaparsec
                     , parser-combinators
+                    , utf8-string
+                    , gi-poppler
+                    , gi-cairo-connector
+                    , gi-cairo-render
+                    , gi-cairo
     hs-source-dirs:   app
     default-language: Haskell2010
     ghc-options: -Wall
