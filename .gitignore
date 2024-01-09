@@ -1,3 +1,6 @@
+# -- artifacts
+example_out/
+
 # -- Shared
 dist
 dist-*
