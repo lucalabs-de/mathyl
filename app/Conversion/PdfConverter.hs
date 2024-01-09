@@ -71,7 +71,7 @@ convertPdfToPng inPath pngHeight = do
   (pdfHeight, pdfWidth) <- pageGetSize page
   let pngWidth = scaleToPixelHeight pngHeight pdfWidth pdfHeight
 
-  let outPath = inPath -<.> ".svg"
+  let outPath = inPath -<.> ".png"
 
   withImageSurface
     FormatARGB32

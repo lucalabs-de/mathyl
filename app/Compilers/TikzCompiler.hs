@@ -4,19 +4,20 @@
 module Compilers.TikzCompiler where
 
 import Control.Monad (when)
+import Conversion.PdfConverter (convertPdfToSvg, convertPdfToPng)
 import Data.Aeson (object)
 import Data.Aeson.Types ((.=))
 import qualified Data.Text as T
 import qualified Data.Text.Lazy.IO as TIO
 import Logging.Logger
-import System.FilePath (takeDirectory, (-<.>), takeBaseName)
+import Settings.Options (Settings (..))
+import System.FilePath (takeBaseName, takeDirectory, (-<.>))
 import System.Process (readCreateProcessWithExitCode, shell)
 import Text.Mustache
 import qualified Text.Mustache.Compile.TH as TH
 import Util.FileHelpers
 import Util.Files (tikzTemplate)
 import Util.Helpers
-import Conversion.PdfConverter (convertPdfToSvg)
 
 data TikzImage = TikzImage
   { t_source :: T.Text
@@ -26,8 +27,8 @@ data TikzImage = TikzImage
   }
   deriving (Show)
 
-compileTikzImage :: Logger -> TikzImage -> IO ()
-compileTikzImage logger img =
+compileTikzImage :: Logger -> Settings -> TikzImage -> IO ()
+compileTikzImage logger settings img =
   do
     let templateDir = takeDirectory (t_file img)
     let templateSrc = t_file img -<.> ".tex"
@@ -47,8 +48,12 @@ compileTikzImage logger img =
 
     let imagePath = t_file img -<.> ".pdf"
 
-    convertPdfToSvg imagePath
-    deleteAllExceptFileExtensions templateDir [".svg"] (takeBaseName $ t_file img)
+    if oUseSvgs settings then do
+      convertPdfToSvg imagePath
+      deleteAllExceptFileExtensions templateDir [".svg"] (takeBaseName $ t_file img)
+    else do 
+      convertPdfToPng imagePath (oDefaultPngHeightInPx settings) 
+      deleteAllExceptFileExtensions templateDir [".png"] (takeBaseName $ t_file img)
 
     when (isErrorCode exitCode) $ do
       logError logger "Failed!"
