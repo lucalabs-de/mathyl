@@ -22,15 +22,15 @@ Compiles your blog.
 ```
 mathyl preview <in path> [out path]
 ```
-Compiles your blog and exposes it at 127.0.0.1:8080. Stores your blog files at [out path]. 
+Starts a local preview at at 127.0.0.1:8080. Optionally stores your blog files at [out path]. 
 
 ## Implementation TODOs
 
-* [x] Parse Markdown files, extract tikz drawings and metadata
-* [x] Handle math & markdown compilation with pandoc
-* [x] Handle tikZ drawings with locally installed version of latex and `standalone` package
-* [ ] Implement HTML template filling with stache
-* [x] Replace print statements by logger
+* [ ] Implement options 
+    - [x] --use-svgs
+    - [ ] --server-side-rendering
+    - [ ] --continue-on-errors
+    - [ ] --nice-urls
 
 ## Future Plans
 * [ ] Option to continue compilation on errors (--continue-on-errors)
