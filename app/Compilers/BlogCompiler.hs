@@ -1,3 +1,4 @@
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Compilers.BlogCompiler (compile) where
@@ -5,7 +6,7 @@ module Compilers.BlogCompiler (compile) where
 import Compilers.Post (PostInfo (..))
 import Compilers.Templates
 import Compilers.TikzCompiler
-import Control.Monad (filterM, forM_)
+import Control.Monad (forM_)
 import Data.Bifunctor
 import Data.Either (fromRight)
 import Data.List (foldl')
@@ -16,7 +17,7 @@ import qualified Data.Text.IO as TIO
 import Data.Traversable (forM)
 import Logging.Logger
 import Settings.Options (Settings (..))
-import System.Directory (createDirectoryIfMissing, doesDirectoryExist, listDirectory)
+import System.Directory (createDirectoryIfMissing)
 import System.FilePath (takeBaseName, takeDirectory, (-<.>), (<.>), (</>))
 import Text.Pandoc (
   Block (CodeBlock, Para, Plain),
@@ -64,8 +65,10 @@ compile logger settings inDir outDir = do
 
   removeDirectoryIfExists outDir -- clean workdir
   posts <- getMarkdownFiles inDir
+  otherFiles <- getNonMarkdownFiles inDir
 
   forM_ posts $ compileFile (mkChild logger) settings inDir outDir
+  forM_ otherFiles \f -> copyAndCreateParents f (replaceTopDirectory inDir outDir f)
 
   logMsg logger "Done!"
 
@@ -111,7 +114,7 @@ renderAst logger settings post ast = do
   let (parsedAst, tikzImages) = processTikzBlocks ast (pAssetDir post) fileExt texPkgs
   let numImages = length tikzImages
 
-  forM_ (zip [1 :: Int ..] tikzImages) $ \(idx, source) -> do
+  forM_ (zip [1 :: Int ..] tikzImages) \(idx, source) -> do
     logMsg logger $ "Compiling Image " ++ show idx ++ "/" ++ show numImages
     compileTikzImage (mkChild logger) settings source
 
@@ -176,8 +179,7 @@ tikzFilePath dir ext idx = dir </> show idx <.> ext
 
 -- | Returns a list of all markdown files stored in @p dir and its subdirectories.
 getMarkdownFiles :: FilePath -> IO [FilePath]
-getMarkdownFiles dir = do
-  contents <- map (dir </>) <$> listDirectory dir
-  dirs <- filterM doesDirectoryExist contents
-  let mdFiles = filter (endsIn [".md", ".markdown"]) contents
-  (mdFiles ++) . concat <$> mapM getMarkdownFiles dirs
+getMarkdownFiles dir = filter (endsIn [".md", ".markdown"]) <$> listDirectoryRecursive dir
+
+getNonMarkdownFiles :: FilePath -> IO [FilePath]
+getNonMarkdownFiles dir = filter (not . endsIn [".md", ".markdown"]) <$> listDirectoryRecursive dir
