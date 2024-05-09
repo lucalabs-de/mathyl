@@ -78,6 +78,11 @@ settingsParser =
           <> short 'e'
       )
     <*> switch
+      ( help "Generate nicer looking urls"
+          <> long "nice-urls"
+          <> short 'e'
+      )
+    <*> switch
       ( help "Only log errors"
           <> long "quiet"
           <> short 'q'
