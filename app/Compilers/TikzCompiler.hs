@@ -3,8 +3,7 @@
 
 module Compilers.TikzCompiler where
 
-import Control.Monad (when)
-import Conversion.PdfConverter (convertPdfToSvg, convertPdfToPng)
+import Conversion.PdfConverter (convertPdfToPng, convertPdfToSvg)
 import Data.Aeson (object)
 import Data.Aeson.Types ((.=))
 import qualified Data.Text as T
@@ -15,9 +14,11 @@ import System.FilePath (takeBaseName, takeDirectory, (-<.>))
 import System.Process (readCreateProcessWithExitCode, shell)
 import Text.Mustache
 import qualified Text.Mustache.Compile.TH as TH
+
 import Util.FileHelpers
 import Util.Files (tikzTemplate)
 import Util.Helpers
+import System.Exit (exitFailure)
 
 data TikzImage = TikzImage
   { t_source :: T.Text
@@ -44,17 +45,21 @@ compileTikzImage logger settings img =
     TIO.writeFile templateSrc filledTemplate
 
     let compileProcess = shell $ "pdflatex -halt-on-error -output-directory=" ++ templateDir ++ " " ++ templateSrc
-    (exitCode, stdout, _) <- readCreateProcessWithExitCode compileProcess ""
+    (exitCode, stdout, stderr) <- readCreateProcessWithExitCode compileProcess ""
 
-    let imagePath = t_file img -<.> ".pdf"
+    if (not . isErrorCode) exitCode
+      then do
+        let imagePath = t_file img -<.> ".pdf"
 
-    if oUseSvgs settings then do
-      convertPdfToSvg imagePath
-      deleteAllExceptFileExtensions templateDir [".svg"] (takeBaseName $ t_file img)
-    else do 
-      convertPdfToPng imagePath (oDefaultPngHeightInPx settings) 
-      deleteAllExceptFileExtensions templateDir [".png"] (takeBaseName $ t_file img)
-
-    when (isErrorCode exitCode) $ do
-      logError logger "Failed!"
-      logError logger stdout
+        if oUseSvgs settings
+          then do
+            convertPdfToSvg imagePath
+            deleteAllExceptFileExtensions templateDir [".svg"] (takeBaseName $ t_file img)
+          else do
+            convertPdfToPng imagePath (oDefaultPngHeightInPx settings)
+            deleteAllExceptFileExtensions templateDir [".png"] (takeBaseName $ t_file img)
+      else do
+        logError logger stdout
+        logError logger stderr
+        logError logger "Failed!"
+        exitFailure
