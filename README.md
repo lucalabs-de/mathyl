@@ -33,11 +33,9 @@ Starts a local preview at at 127.0.0.1:8080. Optionally stores your blog files a
 
 * [ ] Implement options 
     - [x] --use-svgs
-    - [ ] --server-side-rendering
     - [ ] --continue-on-errors
     - [ ] --nice-urls
 
 ### Future Plans
 * [ ] Option to continue compilation on errors (--continue-on-errors)
-* [ ] Optional server side rendering for KaTeX formulas (--server-side-rendering)
 * [ ] Option to make URLs nicer (`blog.tld/posts/test-post` instead of `blog.tld/posts/test-post.html`, --nice-urls)
