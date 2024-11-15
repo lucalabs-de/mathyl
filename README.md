@@ -1,4 +1,4 @@
-<h2 align="center">mathyl</h2>
+<h3 align="center">mathyl</h3>
 
 Mathyl is a batteries-included static site generator. You define your site structure in terms of directories and write your content in markdown files. Mathyl then simply mirrors the directory structure, compiling all markdown files to HTML along the way. You can also define HTML templates for your content using mustache.
 
