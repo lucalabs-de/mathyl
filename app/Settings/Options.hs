@@ -3,7 +3,7 @@ module Settings.Options where
 data Settings = Settings
   { oDefaultPngHeightInPx :: Int
   , oUseSvgs :: Bool
-  , oNiceUrls :: Bool
+  , oNiceUrls :: Bool -- TODO implement
   , oServerSideRendering :: Bool -- TODO implement
   , oContinueOnErrors :: Bool -- TODO implement
   , oQuiet :: Bool

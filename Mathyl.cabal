@@ -18,10 +18,10 @@ extra-source-files:
 executable Mathyl
     main-is:          Main.hs
 
-    other-modules:    Util.Helpers
-                    , Util.Files
+    other-modules:    Util.Helpers 
                     , Util.FileHelpers
                     , Util.MathHelpers
+                    , Util.Files
                     , Logging.Logger
                     , Compilers.Templates
                     , Compilers.TikzCompiler
@@ -34,7 +34,9 @@ executable Mathyl
                     , Paths_Mathyl
 
     build-depends:    base
+                    , mtl
                     , aeson
+                    , exceptions
                     , optparse-applicative
                     , stache
                     , text 
@@ -55,4 +57,4 @@ executable Mathyl
                     , gi-cairo
     hs-source-dirs:   app
     default-language: Haskell2010
-    ghc-options: -Wall
+    ghc-options: -Wall -XFlexibleContexts

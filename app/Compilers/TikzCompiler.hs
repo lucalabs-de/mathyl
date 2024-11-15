@@ -15,10 +15,11 @@ import System.Process (readCreateProcessWithExitCode, shell)
 import Text.Mustache
 import qualified Text.Mustache.Compile.TH as TH
 
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import System.Exit (exitFailure)
 import Util.FileHelpers
 import Util.Files (tikzTemplate)
 import Util.Helpers
-import System.Exit (exitFailure)
 
 data TikzImage = TikzImage
   { t_source :: T.Text
@@ -28,8 +29,8 @@ data TikzImage = TikzImage
   }
   deriving (Show)
 
-compileTikzImage :: Logger -> Settings -> TikzImage -> IO ()
-compileTikzImage logger settings img =
+compileTikzImage :: (MonadLogger m, MonadIO m) => Settings -> TikzImage -> m ()
+compileTikzImage settings img =
   do
     let templateDir = takeDirectory (t_file img)
     let templateSrc = t_file img -<.> ".tex"
@@ -42,10 +43,10 @@ compileTikzImage logger settings img =
               , "libraries" .= t_libraries img
               , "packages" .= t_packages img
               ]
-    TIO.writeFile templateSrc filledTemplate
+    liftIO $ TIO.writeFile templateSrc filledTemplate
 
     let compileProcess = shell $ "pdflatex -halt-on-error -output-directory=" ++ templateDir ++ " " ++ templateSrc
-    (exitCode, stdout, stderr) <- readCreateProcessWithExitCode compileProcess ""
+    (exitCode, stdout, stderr) <- liftIO $ readCreateProcessWithExitCode compileProcess ""
 
     if (not . isErrorCode) exitCode
       then do
@@ -53,13 +54,13 @@ compileTikzImage logger settings img =
 
         if oUseSvgs settings
           then do
-            convertPdfToSvg imagePath
-            deleteAllExceptFileExtensions templateDir [".svg"] (takeBaseName $ t_file img)
+            liftIO $ convertPdfToSvg imagePath
+            liftIO $ deleteAllExceptFileExtensions templateDir [".svg"] (takeBaseName $ t_file img)
           else do
-            convertPdfToPng imagePath (oDefaultPngHeightInPx settings)
-            deleteAllExceptFileExtensions templateDir [".png"] (takeBaseName $ t_file img)
+            liftIO $ convertPdfToPng imagePath (oDefaultPngHeightInPx settings)
+            liftIO $ deleteAllExceptFileExtensions templateDir [".png"] (takeBaseName $ t_file img)
       else do
-        logError logger stdout
-        logError logger stderr
-        logError logger "Failed!"
-        exitFailure
+        logError stdout
+        logError stderr
+        logError "Failed!"
+        liftIO exitFailure

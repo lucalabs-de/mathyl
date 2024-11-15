@@ -1,9 +1,11 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE MonoLocalBinds #-}
 
 module Compilers.Templates (fillTemplate) where
 
 import Compilers.Post (PostInfo (pOutputFile))
 import Control.Monad (unless)
+import Control.Monad.IO.Class (MonadIO(..))
 import Data.Aeson (toJSON)
 import Data.Map (Map)
 import qualified Data.Text as T
@@ -20,29 +22,29 @@ import qualified Text.Mustache.Type as MT
 import Util.FileHelpers (normalizeFilePath)
 import Util.Helpers (memoize, toPName, trim)
 
-fillTemplate :: Logger -> PostInfo -> Map T.Text T.Text -> FilePath -> IO ()
-fillTemplate logger post templateMap templateFile = do
-  compiledTemplate <- getFullTemplate logger templateFile
+fillTemplate :: (MonadLogger m, MonadIO m) => PostInfo -> Map T.Text T.Text -> FilePath -> m ()
+fillTemplate post templateMap templateFile = do
+  compiledTemplate <- getFullTemplate templateFile
   let filledTemplate = renderMustache compiledTemplate (toJSON templateMap)
-  LTIO.writeFile (pOutputFile post) filledTemplate
+  liftIO $ LTIO.writeFile (pOutputFile post) filledTemplate
 
-getFullTemplate :: Logger -> FilePath -> IO MT.Template
-getFullTemplate logger path =
+getFullTemplate :: (MonadLogger m, MonadIO m) => FilePath -> m MT.Template
+getFullTemplate path =
   do
     -- remove any surrounding whitespace and unify file paths for memoization
     let cleanPath = normalizeFilePath $ trim path
 
-    fileExists <- doesFileExist cleanPath
+    fileExists <- liftIO $ doesFileExist cleanPath
     unless fileExists do
-      logError logger $ "Could not find template " ++ cleanPath
+      logError $ "Could not find template " ++ cleanPath
       error "Failed!"
 
-    baseTemplate <- compileTemplateFile logger cleanPath
-    dependencies <- getTemplateDependencies cleanPath
+    baseTemplate <- compileTemplateFile cleanPath
+    dependencies <- liftIO $ getTemplateDependencies cleanPath
     case dependencies of
-      Left bundle -> logError logger (errorBundlePretty bundle) >> error "Failed!"
+      Left bundle -> logError (errorBundlePretty bundle) >> error "Failed!"
       Right deps -> do
-        compiledDependencies <- mapM (compileTemplateFile logger) deps
+        compiledDependencies <- mapM compileTemplateFile deps
         return $ foldr (<>) baseTemplate compiledDependencies
 
 getTemplateDependencies :: FilePath -> IO (Either (ParseErrorBundle T.Text Void) [FilePath])
@@ -51,13 +53,13 @@ getTemplateDependencies path = do
   let srcFileName = takeFileName path
   return $ runParser pPartials srcFileName templateSrc
 
-compileTemplateFile :: Logger -> FilePath -> IO MT.Template
-compileTemplateFile logger path = do
-  templateRes <- getCompiledTemplateByFile path
+compileTemplateFile :: (MonadLogger m, MonadIO m) => FilePath -> m MT.Template
+compileTemplateFile path = do
+  templateRes <- liftIO $ getCompiledTemplateByFile path
   case templateRes of
     Left bundle -> do
-      logError logger "Could not compile template!"
-      logError logger (errorBundlePretty bundle)
+      logError "Could not compile template!"
+      logError (errorBundlePretty bundle)
       error "Failed!"
     Right template -> return template
 

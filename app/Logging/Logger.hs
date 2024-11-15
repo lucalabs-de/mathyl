@@ -1,14 +1,24 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralisedNewtypeDeriving #-}
 
 module Logging.Logger where
 
 import Control.Monad (when)
 import Control.Monad.IO.Class
+import Control.Monad.Reader (ReaderT, mapReaderT)
+import Control.Monad.State (
+  MonadTrans (lift),
+  StateT (..),
+  evalStateT,
+  get,
+  put,
+ )
 import qualified Data.Text as T
 import System.IO (hPutStrLn)
 import qualified System.IO as FD (stderr)
 import Util.Helpers (indent)
+import Control.Monad.Catch (MonadThrow, MonadCatch, MonadMask)
 
 class Printable a where
   toString :: a -> String
@@ -32,29 +42,66 @@ data Logger = Logger
   }
   deriving (Show)
 
-mkLogger :: Verbosity -> Logger
-mkLogger = Logger 0
+newtype LoggerT m a = LoggerT {unLoggerT :: StateT Logger m a}
+  deriving
+    ( Functor
+    , Applicative
+    , Monad
+    , MonadTrans
+    , MonadLogger
+    , MonadThrow
+    , MonadCatch
+    , MonadMask
+    )
 
-mkChild :: Logger -> Logger
-mkChild l = Logger (depth l + 1) (verbosity l)
+class (MonadIO m) => MonadLogger m where
+  logSubroutine :: m a -> m a
+  startSubroutineLog :: m ()
+  endSubroutineLog :: m ()
+  message :: (Printable s) => Verbosity -> s -> m ()
+  logMsg :: String -> m ()
+  logMsgP :: (Printable s) => s -> m ()
+  logError :: String -> m ()
+  logErrorP :: (Printable s) => s -> m ()
+  logObj :: (Show o) => o -> m ()
+  logErrorObj :: (Show o) => o -> m ()
 
-message :: (MonadIO m, Printable s) => Logger -> Verbosity -> s -> m ()
-message l v s = liftIO $
-  when (v >= verbosity l) case v of
-    Error -> hPutStrLn FD.stderr (indent (depth l * 2) (toString s))
-    Message -> putStrLn (indent (depth l * 2) (toString s))
+instance (MonadIO m) => MonadIO (LoggerT m) where
+  liftIO = lift . liftIO
 
-logMsg :: (MonadIO m) => Logger -> String -> m ()
-logMsg logger = message logger Message
+instance (MonadIO m) => MonadLogger (StateT Logger m) where
+  startSubroutineLog = get >>= \l -> put l{depth = depth l + 1}
+  endSubroutineLog = get >>= \l -> put l{depth = max (depth l - 1) 0}
+  logSubroutine r = startSubroutineLog >> r >>= (\x -> endSubroutineLog >> return x)
 
-logMsgP :: (MonadIO m, Printable s) => Logger -> s -> m ()
-logMsgP logger = message logger Message
+  message v s =
+    get >>= \l ->
+      when
+        (v >= verbosity l)
+        case v of
+          Error -> liftIO $ hPutStrLn FD.stderr (indent (depth l * 2) (toString s))
+          Message -> liftIO $ putStrLn (indent (depth l * 2) (toString s))
 
-logError :: (MonadIO m) => Logger -> String -> m ()
-logError logger = message logger Error
+  logMsg = message Message 
+  logMsgP = message Message
+  logError = message Error
+  logErrorP = message Error
+  logObj o = message Message (show o)
+  logErrorObj o = message Error (show o)
 
-logErrorP :: (MonadIO m, Printable s) => Logger -> s -> m ()
-logErrorP logger = message logger Error
+instance (MonadLogger m) => MonadLogger (ReaderT e m) where
+  startSubroutineLog = lift startSubroutineLog
+  endSubroutineLog = lift endSubroutineLog
+  logSubroutine = mapReaderT logSubroutine
 
-logErrorObj :: (MonadIO m, Show o) => Logger -> o -> m ()
-logErrorObj logger obj = message logger Error (show obj)
+  message v s = lift (message v s)
+
+  logMsg = lift . logMsg
+  logMsgP = lift . logMsgP
+  logError = lift . logError
+  logErrorP = lift . logErrorP
+  logObj = lift . logObj
+  logErrorObj = lift . logErrorObj
+
+runLoggerT :: (Monad m, MonadIO m) => LoggerT m a -> Verbosity -> m a
+runLoggerT l v = evalStateT (unLoggerT l) (Logger 0 v)

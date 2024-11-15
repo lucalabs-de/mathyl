@@ -7,6 +7,8 @@ import Compilers.Post (PostInfo (..))
 import Compilers.Templates
 import Compilers.TikzCompiler
 import Control.Monad (forM_)
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.Reader (MonadReader (..))
 import Data.Bifunctor
 import Data.Either (fromRight)
 import Data.List (foldl')
@@ -59,21 +61,22 @@ markdownExtensions =
 katexWriter :: HTMLMathMethod
 katexWriter = KaTeX "vendor/katex"
 
-compile :: Logger -> Settings -> FilePath -> FilePath -> IO ()
-compile logger settings inDir outDir = do
-  logMsg logger "Generating blog..."
+compile :: (MonadReader Settings m, MonadLogger m, MonadIO m) => FilePath -> FilePath -> m ()
+compile inDir outDir = do
+  logMsg "Generating blog..."
 
-  removeDirectoryIfExists outDir -- clean workdir
-  posts <- getMarkdownFiles inDir
-  otherFiles <- getNonMarkdownFiles inDir
+  liftIO $ removeDirectoryIfExists outDir -- clean workdir
+  posts <- liftIO $ getMarkdownFiles inDir
+  otherFiles <- liftIO $ getNonMarkdownFiles inDir
 
-  forM_ posts $ compileFile (mkChild logger) settings inDir outDir
-  forM_ otherFiles \f -> copyAndCreateParents f (replaceTopDirectory inDir outDir f)
+  logSubroutine $ forM_ posts (compileFile inDir outDir)
 
-  logMsg logger "Done!"
+  forM_ otherFiles \f -> liftIO $ copyAndCreateParents f (replaceTopDirectory inDir outDir f)
 
-compileFile :: Logger -> Settings -> FilePath -> FilePath -> FilePath -> IO ()
-compileFile logger settings inDir outDir post = do
+  logMsg "Done!"
+
+compileFile :: (MonadReader Settings m, MonadLogger m, MonadIO m) => FilePath -> FilePath -> FilePath -> m ()
+compileFile inDir outDir post = do
   let fileName = takeBaseName post
   let outputFile = replace inDir outDir post -<.> "html"
   let outputDir = takeDirectory outputFile
@@ -91,22 +94,23 @@ compileFile logger settings inDir outDir post = do
           , pAssetDirName = assetDirName
           }
 
-  logMsg logger $ "Compiling " ++ show fileName
+  logMsg $ "Compiling " ++ show fileName
 
-  createDirectoryIfMissing True assetDir
+  liftIO $ createDirectoryIfMissing True assetDir
 
-  md <- TIO.readFile post
-  result <- runIO $ readMarkdown def{readerExtensions = markdownExtensions} md
+  md <- liftIO $ TIO.readFile post
+  result <- liftIO . runIO $ readMarkdown def{readerExtensions = markdownExtensions} md
 
   case result of
     Left bundle -> do
-      logError logger "Failed!"
-      logErrorP logger (renderError bundle)
-    Right ast -> renderAst (mkChild logger) settings postInfo ast
+      logError "Failed!"
+      logErrorP (renderError bundle)
+    Right ast -> logSubroutine $ renderAst postInfo ast
 
-renderAst :: Logger -> Settings -> PostInfo -> Pandoc -> IO ()
-renderAst logger settings post ast = do
-  metadata <- parseMetadata ast
+renderAst :: (MonadReader Settings m, MonadLogger m, MonadIO m) => PostInfo -> Pandoc -> m ()
+renderAst post ast = do
+  metadata <- liftIO $ parseMetadata ast
+  settings <- ask
 
   let texPkgs = commaSeparatedToList $ fromMaybe "" $ metadata !? "packages"
   let fileExt = if oUseSvgs settings then ".svg" else ".png"
@@ -115,21 +119,20 @@ renderAst logger settings post ast = do
   let numImages = length tikzImages
 
   forM_ (zip [1 :: Int ..] tikzImages) \(idx, source) -> do
-    logMsg logger $ "Compiling Image " ++ show idx ++ "/" ++ show numImages
-    compileTikzImage (mkChild logger) settings source
+    logMsg $ "Compiling Image " ++ show idx ++ "/" ++ show numImages
+    logSubroutine $ compileTikzImage settings source
 
   html <-
     fromRight ""
-      <$> runIO (writeHtml5String def{writerHTMLMathMethod = katexWriter} parsedAst)
+      <$> (liftIO . runIO) (writeHtml5String def{writerHTMLMathMethod = katexWriter} parsedAst)
 
-  logMsg logger "Filling template"
+  logMsg "Filling template"
   let templateMetadata = metadata !? "template"
 
   case templateMetadata of
-    Nothing -> logError logger "Missing template key in metadata"
+    Nothing -> logError "Missing template key in metadata"
     Just templateFile ->
-      fillTemplate
-        (mkChild logger)
+      logSubroutine $ fillTemplate
         post
         (insert "content" html metadata)
         (pInputDir post </> T.unpack templateFile)
@@ -147,11 +150,8 @@ parseMetadata (Pandoc meta _) = fromList <$> parseMetadata_ (unMeta meta)
         return (k, fromRight "" parsedValue)
       _ -> return (k, "")
 
-{- |
-  Finds tikZ blocks that should be rendered as images in the Pandoc AST and replaces them
-  by Image blocks. Returns both the updated AST and the list of tikZ images to be
-  compiled.
--}
+-- | Finds tikZ blocks that should be rendered as images in the Pandoc AST and replaces them 
+-- by Image blocks. Returns both the updated AST and the list of tikZ images to be compiled.
 processTikzBlocks :: Pandoc -> FilePath -> String -> [T.Text] -> (Pandoc, [TikzImage])
 processTikzBlocks (Pandoc meta items) assetPath fileExtension texPkgs =
   first (Pandoc meta) $
@@ -166,9 +166,8 @@ processTikzBlocks (Pandoc meta items) assetPath fileExtension texPkgs =
   tikzImage src lib pkg idx =
     TikzImage src lib pkg (tikzFilePath assetPath fileExtension idx)
 
-{- | Constructs a Pandoc Image block as used by @ref processTikzBlocks. The Image block
-points to a path generated by @ref tikzFilePath based on @p dir and @p idx.
--}
+-- | Constructs a Pandoc Image block as used by @ref processTikzBlocks. The Image block
+-- points to a path generated by @ref tikzFilePath based on @p dir and @p idx.
 tikzPlaceholder :: FilePath -> String -> Int -> Block
 tikzPlaceholder dir ext idx =
   Para [Image ("tikz", [], []) [] (T.pack $ tikzFilePath (takeBaseName dir) ext idx, "")]

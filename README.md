@@ -1,9 +1,10 @@
-<h3 align="center">mathyl</h3>
-Yeah, yeah, I know &ndash; it's another static site generator. Even though it seems that everyone has to write one, surprisingly none of them fit my requirements.
-I want to write a mathematics-heavy blog, so I need extensive LaTeX support &ndash; including the occasional tikZ drawing. Moreover, I want the actual writing to be as easy as possible, so Markdown based blog posts are a must. I would like to avoid any JavaScript in the output and don't want to touch Python with a 10-foot pole. 
+<h2 align="center">mathyl</h2>
 
+Mathyl is a batteries-included static site generator. You define your site structure in terms of directories and write your content in markdown files. Mathyl then simply mirrors the directory structure, compiling all markdown files to HTML along the way. You can also define HTML templates for your content using mustache.
 
-This is my attempt to satisfy these demands ...written in Haskell of course :)
+The eponymous features of Mathyl are extensive LaTeX support based on KaTeX and automatic compilation of tikZ images (either to .png or vector graphics). Its output also does not contain any JavaScript, unless your templates contain it.
+
+Although there are probably hundreds of static site generators around, I couldn't find any that support this exact feature set, so I wrote Mathyl ...in Haskell of course :)
 
 ### Features
 - HTML generation from Markdown files 
@@ -35,4 +36,4 @@ Starts a local preview at at 127.0.0.1:8080. Optionally stores your blog files a
 ### Future Plans
 * [ ] Option to continue compilation on errors (--continue-on-errors)
 * [ ] Optional server side rendering for KaTeX formulas (--server-side-rendering)
-* [ ] Option to make URLs nicer (`blog.tld/posts/test-post` instead of `blog.tld/posts/test-post.html`)
+* [ ] Option to make URLs nicer (`blog.tld/posts/test-post` instead of `blog.tld/posts/test-post.html`, --nice-urls)

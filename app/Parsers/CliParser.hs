@@ -34,6 +34,7 @@ data BuildOptions = BuildOptions
   , bSettings :: UserDefinedSettings
   }
   deriving (Show)
+
 data PreviewOptions = PreviewOptions
   { pInDir :: String
   , pOutDir :: Maybe String
@@ -110,4 +111,4 @@ getCliOptions :: IO CliOptions
 getCliOptions =
   execParser $
     info (helper <*> versionOption <*> optionsParser) $
-      header ("mathyl" ++ showVersion version)
+      header ("mathyl " ++ showVersion version ++ " - Plug and Play Static Site Generator")

@@ -1,22 +1,40 @@
 module Main where
 
 import Compilers.BlogCompiler
+import Control.Monad.Catch (MonadMask)
+import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.Reader (MonadReader, runReaderT)
 import Logging.Logger
 import Parsers.CliParser
-import Settings.Options (Settings, fromUserDefinedSettings)
+import Settings.Options (Settings (oQuiet), fromUserDefinedSettings)
 import System.IO.Temp (withSystemTempDirectory)
 
-display :: FilePath -> IO ()
+display :: (MonadReader Settings m, MonadIO m) => FilePath -> m ()
 display = undefined
 
-run :: Logger -> Settings -> Command -> IO ()
-run l s (Build opts) = compile l s (bInDir opts) (bOutDir opts)
-run l s (Preview opts) = case pOutDir opts of
-  Just outDir -> runMathyl l s (pInDir opts) outDir
-  Nothing -> withSystemTempDirectory "mathyl" (runMathyl l s $ pInDir opts)
+run ::
+  ( MonadReader Settings m
+  , MonadLogger m
+  , MonadMask m
+  , MonadIO m
+  ) =>
+  Command ->
+  m ()
+run (Build opts) = compile (bInDir opts) (bOutDir opts)
+run (Preview opts) = case pOutDir opts of
+  Just outDir -> runMathyl (pInDir opts) outDir
+  Nothing -> withSystemTempDirectory "mathyl" (runMathyl $ pInDir opts)
 
-runMathyl :: Logger -> Settings -> FilePath -> FilePath -> IO ()
-runMathyl l s inDir outDir = compile l s inDir outDir >> display outDir
+runMathyl ::
+  ( MonadReader Settings m
+  , MonadLogger m
+  , MonadMask m
+  , MonadIO m
+  ) =>
+  FilePath ->
+  FilePath ->
+  m ()
+runMathyl inDir outDir = compile inDir outDir >> display outDir
 
 buildSettings :: Command -> Settings
 buildSettings (Build opts) = fromUserDefinedSettings $ bSettings opts
@@ -28,5 +46,6 @@ main = do
 
   let command = optCommand opts
   let settings = buildSettings command
+  let logLevel = if oQuiet settings then Error else Message
 
-  run (mkLogger Message) settings command
+  runLoggerT (runReaderT (run command) settings) logLevel
