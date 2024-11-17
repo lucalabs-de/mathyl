@@ -24,8 +24,9 @@ executable Mathyl
                     , Util.Files
                     , Logging.Logger
                     , Compilers.Templates
-                    , Compilers.TikzCompiler
                     , Compilers.BlogCompiler
+                    , Compilers.MathCompiler
+                    , Compilers.TikzCompiler
                     , Settings.Options
                     , Compilers.Post
                     , Conversion.PdfConverter
@@ -55,6 +56,7 @@ executable Mathyl
                     , gi-cairo-connector
                     , gi-cairo-render
                     , gi-cairo
+                    , quickjs-hs
     hs-source-dirs:   app
     default-language: Haskell2010
     ghc-options: -Wall -XFlexibleContexts

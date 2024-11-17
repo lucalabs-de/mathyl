@@ -69,11 +69,6 @@ settingsParser =
           <> short 's'
       )
     <*> switch
-      ( help "Use server-side rendering for LaTeX formulas"
-          <> long "server-render"
-          <> short 'r'
-      )
-    <*> switch
       ( help "Continue compiling on errors"
           <> long "continue-on-errors"
           <> short 'e'
