@@ -47,6 +47,7 @@ newtype LoggerT m a = LoggerT {unLoggerT :: StateT Logger m a}
     ( Functor
     , Applicative
     , Monad
+    , MonadIO
     , MonadTrans
     , MonadLogger
     , MonadThrow
@@ -66,9 +67,7 @@ class (MonadIO m) => MonadLogger m where
   logObj :: (Show o) => o -> m ()
   logErrorObj :: (Show o) => o -> m ()
 
-instance (MonadIO m) => MonadIO (LoggerT m) where
-  liftIO = lift . liftIO
-
+-- Implementation of MonadLogger/LoggerT in terms of State 
 instance (MonadIO m) => MonadLogger (StateT Logger m) where
   startSubroutineLog = get >>= \l -> put l{depth = depth l + 1}
   endSubroutineLog = get >>= \l -> put l{depth = max (depth l - 1) 0}
