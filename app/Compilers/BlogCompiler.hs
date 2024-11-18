@@ -42,7 +42,7 @@ import Compilers.MathCompiler (processMathBlocks)
 import Compilers.Post (PostInfo (..))
 import Compilers.Templates
 import Compilers.TikzCompiler
-import Control.Monad.Catch (MonadThrow, MonadMask)
+import Control.Monad.Catch (MonadMask, MonadThrow)
 import Util.FileHelpers
 import Util.Helpers
 
@@ -141,10 +141,9 @@ renderAst post ast = do
 
   logMsg "Processing LaTeX"
 
-  mathAst <- processMathBlocks ast
-
-  let (tikzAst, tikzImages) =
-        processTikzBlocks (pAssetDir post) fileExt texPkgs mathAst
+  (updatedAst, tikzImages) <-
+    processTikzBlocks (pAssetDir post) fileExt texPkgs
+      <$> processMathBlocks ast
 
   let numImages = length tikzImages
 
@@ -154,7 +153,7 @@ renderAst post ast = do
 
   html <-
     fromRight ""
-      <$> (liftIO . runIO) (writeHtml5String def tikzAst)
+      <$> (liftIO . runIO) (writeHtml5String def updatedAst)
 
   logMsg "Filling template"
   let templateMetadata = metadata !? "template"
