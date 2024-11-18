@@ -7,7 +7,7 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Conversion.PdfConverter (convertPdfToPng, convertPdfToSvg)
 import Data.Aeson (object)
 import Data.Aeson.Types ((.=))
-import Data.Bifunctor (first)
+import Data.Bifunctor (bimap)
 import Data.List (foldl')
 import qualified Data.Text as T
 import qualified Data.Text.Lazy.IO as TIO
@@ -20,10 +20,10 @@ import Text.Mustache
 import qualified Text.Mustache.Compile.TH as TH
 import Text.Pandoc (Block (..), Inline (..), Pandoc (..))
 
+import Control.Monad.Reader (MonadReader, asks)
 import Util.FileHelpers
 import Util.Files (tikzTemplate)
 import Util.Helpers
-import Control.Monad.Reader (MonadReader, asks)
 
 data TikzImage = TikzImage
   { t_source :: T.Text
@@ -56,7 +56,7 @@ compileTikzImage img =
     if (not . isErrorCode) exitCode
       then do
         let imagePath = t_file img -<.> ".pdf"
-        
+
         useSvgs <- asks oUseSvgs
         defaultPngHeight <- asks oDefaultPngHeightInPx
 
@@ -77,7 +77,7 @@ compileTikzImage img =
 -- by Image blocks. Returns both the updated AST and the list of tikZ images to be compiled.
 processTikzBlocks :: FilePath -> String -> [T.Text] -> Pandoc -> (Pandoc, [TikzImage])
 processTikzBlocks assetPath fileExtension texPkgs (Pandoc meta items) =
-  first (Pandoc meta) $
+  bimap (Pandoc meta . reverse) reverse $ -- we construct the lists in reverse to avoid quadratic complexity
     foldl' store ([], []) (zip [1 ..] items)
  where
   store (pandocItems, tikzItems) (idx, CodeBlock (_, "tikz" : libs, _) src) =
