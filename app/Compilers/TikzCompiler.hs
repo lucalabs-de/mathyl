@@ -75,8 +75,8 @@ compileTikzImage img =
 
 -- Finds tikZ blocks that should be rendered as images in the Pandoc AST and replaces them
 -- by Image blocks. Returns both the updated AST and the list of tikZ images to be compiled.
-processTikzBlocks :: Pandoc -> FilePath -> String -> [T.Text] -> (Pandoc, [TikzImage])
-processTikzBlocks (Pandoc meta items) assetPath fileExtension texPkgs =
+processTikzBlocks :: FilePath -> String -> [T.Text] -> Pandoc -> (Pandoc, [TikzImage])
+processTikzBlocks assetPath fileExtension texPkgs (Pandoc meta items) =
   first (Pandoc meta) $
     foldl' store ([], []) (zip [1 ..] items)
  where

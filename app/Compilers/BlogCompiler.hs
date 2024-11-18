@@ -12,7 +12,6 @@ import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import Data.Traversable (forM)
-import Logging.Logger
 import Settings.Options (Settings (..))
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath (takeBaseName, takeDirectory, (-<.>), (</>))
@@ -25,12 +24,10 @@ import Text.Pandoc (
     Ext_yaml_metadata_block
   ),
   Extensions,
-  HTMLMathMethod (KaTeX),
   Meta (unMeta),
   MetaValue (MetaInlines),
   Pandoc (..),
   ReaderOptions (readerExtensions),
-  WriterOptions (writerHTMLMathMethod),
   def,
   extensionsFromList,
   nullMeta,
@@ -41,11 +38,15 @@ import Text.Pandoc (
   writeMarkdown,
  )
 
+import Compilers.MathCompiler (processMathBlocks)
 import Compilers.Post (PostInfo (..))
 import Compilers.Templates
 import Compilers.TikzCompiler
+import Control.Monad.Catch (MonadThrow, MonadMask)
 import Util.FileHelpers
 import Util.Helpers
+
+import Logging.Logger
 
 markdownExtensions :: Extensions
 markdownExtensions =
@@ -56,12 +57,16 @@ markdownExtensions =
     , Ext_tex_math_dollars
     ]
 
--- <link rel="stylesheet" href="../../vendor/katex/katex.min.css">
-
-katexWriter :: HTMLMathMethod
-katexWriter = KaTeX "https://cdn.jsdelivr.net/npm/katex/dist"
-
-compile :: (MonadReader Settings m, MonadLogger m, MonadIO m) => FilePath -> FilePath -> m ()
+compile ::
+  ( MonadReader Settings m
+  , MonadLogger m
+  , MonadThrow m
+  , MonadMask m
+  , MonadIO m
+  ) =>
+  FilePath ->
+  FilePath ->
+  m ()
 compile inDir outDir = do
   logMsg "Generating blog..."
 
@@ -75,7 +80,17 @@ compile inDir outDir = do
 
   logMsg "Done!"
 
-compileFile :: (MonadReader Settings m, MonadLogger m, MonadIO m) => FilePath -> FilePath -> FilePath -> m ()
+compileFile ::
+  ( MonadReader Settings m
+  , MonadLogger m
+  , MonadThrow m
+  , MonadMask m
+  , MonadIO m
+  ) =>
+  FilePath ->
+  FilePath ->
+  FilePath ->
+  m ()
 compileFile inDir outDir post = do
   let fileName = takeBaseName post
   let outputFile = replace inDir outDir post -<.> "html"
@@ -107,7 +122,16 @@ compileFile inDir outDir post = do
       logErrorP (renderError bundle)
     Right ast -> logSubroutine $ renderAst postInfo ast
 
-renderAst :: (MonadReader Settings m, MonadLogger m, MonadIO m) => PostInfo -> Pandoc -> m ()
+renderAst ::
+  ( MonadReader Settings m
+  , MonadLogger m
+  , MonadThrow m
+  , MonadMask m
+  , MonadIO m
+  ) =>
+  PostInfo ->
+  Pandoc ->
+  m ()
 renderAst post ast = do
   metadata <- liftIO $ parseMetadata ast
   useSvgs <- asks oUseSvgs
@@ -115,7 +139,13 @@ renderAst post ast = do
   let texPkgs = commaSeparatedToList $ fromMaybe "" $ metadata !? "packages"
   let fileExt = if useSvgs then ".svg" else ".png"
 
-  let (parsedAst, tikzImages) = processTikzBlocks ast (pAssetDir post) fileExt texPkgs
+  logMsg "Processing LaTeX"
+
+  mathAst <- processMathBlocks ast
+
+  let (tikzAst, tikzImages) =
+        processTikzBlocks (pAssetDir post) fileExt texPkgs mathAst
+
   let numImages = length tikzImages
 
   forM_ (zip [1 :: Int ..] tikzImages) \(idx, source) -> do
@@ -124,7 +154,7 @@ renderAst post ast = do
 
   html <-
     fromRight ""
-      <$> (liftIO . runIO) (writeHtml5String def{writerHTMLMathMethod = katexWriter} parsedAst)
+      <$> (liftIO . runIO) (writeHtml5String def tikzAst)
 
   logMsg "Filling template"
   let templateMetadata = metadata !? "template"
