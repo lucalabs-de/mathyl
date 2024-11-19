@@ -10,8 +10,8 @@ import GI.Cairo.Render (
   fill,
   rectangle,
   renderWith,
+  scale,
   setSourceRGBA,
-  showPage,
   surfaceWriteToPNG,
   withImageSurface,
  )
@@ -22,7 +22,7 @@ import System.FilePath ((-<.>))
 import System.Process (readCreateProcessWithExitCode, shell)
 import Util.FileHelpers (pathToFileScheme)
 import Util.Helpers (isErrorCode)
-import Util.MathHelpers (scaleToPixelHeight)
+import Util.MathHelpers (scaleToPixelHeight, scaleToPixelWidth)
 
 -- This should work, exactly like convert to png does. It seems that
 -- gi-cairo-render is broken. Unfortunately the maintainer is no longer active.
@@ -62,24 +62,32 @@ svgConversionCommand inPath outPath = do
     (_, ExitSuccess) -> return $ "pdf2svg " ++ inPath ++ " " ++ outPath
     _ -> error "No PDF -> SVG conversion tool available"
 
-convertPdfToPng :: FilePath -> Int -> IO ()
-convertPdfToPng inPath pngHeight = do
+convertPdfToPng :: FilePath -> Maybe Int -> Maybe Int -> IO ()
+convertPdfToPng inPath height width = do
   absPath <- T.pack <$> pathToFileScheme inPath
   doc <- documentNewFromFile absPath Nothing
   page <- documentGetPage doc 0
 
   (pdfHeight, pdfWidth) <- pageGetSize page
-  let pngWidth = scaleToPixelHeight pngHeight pdfWidth pdfHeight
+
+  let (pngHeight, pngWidth) = case (height, width) of
+        (Just h, Just w) -> (h, w)
+        (Just h, Nothing) -> (h, scaleToPixelHeight h pdfHeight pdfWidth)
+        (Nothing, Just w) -> (scaleToPixelWidth w pdfWidth pdfHeight, w)
+        (Nothing, Nothing) -> (round pdfHeight, round pdfWidth)
+
+  let scaleH = fromIntegral pngHeight / pdfHeight
+  let scaleW = fromIntegral pngWidth / pdfWidth
 
   let outPath = inPath -<.> ".png"
 
   withImageSurface
     FormatARGB32
-    pngHeight
     pngWidth
+    pngHeight
     \surface -> do
       clearSurface surface pngHeight pngWidth
-      renderPdfToSurface page surface
+      renderPdfToSurface scaleH scaleW page surface
       surfaceWriteToPNG surface outPath
 
 clearSurface :: Surface -> Int -> Int -> IO ()
@@ -88,7 +96,7 @@ clearSurface surface height width = renderWith surface $ do
   rectangle 0 0 (fromIntegral height) (fromIntegral width)
   fill
 
-renderPdfToSurface :: Page -> Surface -> IO ()
-renderPdfToSurface page surface = renderWith surface $ do
-  toRender $ pageRenderForPrinting page
-  showPage
+renderPdfToSurface :: Double -> Double -> Page -> Surface -> IO ()
+renderPdfToSurface scaleH scaleW page surface = renderWith surface $ do
+  scale scaleW scaleH
+  toRender $ pageRender page
