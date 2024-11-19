@@ -23,16 +23,17 @@ import qualified Text.Mustache.Compile.TH as TH
 import Text.Pandoc (Block (..), Inline (..), Pandoc (..))
 
 import Control.Monad.Reader (MonadReader, asks)
-import Data.Maybe (fromMaybe, mapMaybe)
+import Data.Maybe (mapMaybe)
 import Text.Read (readMaybe)
 import Util.FileHelpers
 import Util.Files (tikzTemplate)
 import Util.Helpers
 
 data ImageProperty = Height | Width | AltText
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
 data PropertyValue = IntValue Int | TextValue Text
+  deriving Show
 
 class ExtractValue a where
   value :: PropertyValue -> Maybe a
@@ -87,7 +88,7 @@ compileTikzImage img =
             liftIO $ convertPdfToSvg imagePath
             liftIO $ deleteAllExceptFileExtensions templateDir [".svg"] (takeBaseName $ t_file img)
           else do
-            liftIO $ convertPdfToPng imagePath
+            liftIO $ convertPdfToPng imagePath (t_height img) (t_width img)
             liftIO $ deleteAllExceptFileExtensions templateDir [".png"] (takeBaseName $ t_file img)
       else do
         logError stdout
@@ -138,13 +139,16 @@ tikzPlaceholder dir ext idx props =
         , mapMaybe
             sequence
             [ ("alt", value =<< props !? AltText)
-            , ("width", value =<< props !? Width)
-            , ("height", value =<< props !? Height)
+            , ("width", intToText <$> (value =<< props !? Width))
+            , ("height", intToText <$> (value =<< props !? Height))
             ]
         )
         []
         (T.pack $ tikzFilePath (takeBaseName dir) ext idx, "")
     ]
+  where 
+    intToText :: Int -> Text
+    intToText = T.pack . show 
 
 -- | Given an index @p idx and a file path @p dir, constructs the file path "dir/idx.pdf"
 tikzFilePath :: FilePath -> String -> Int -> FilePath
