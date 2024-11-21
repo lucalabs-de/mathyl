@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
 
 module Util.Helpers where
 
@@ -17,9 +16,6 @@ import Text.Mustache (PName (PName))
 katexWarningMessage :: String
 katexWarningMessage =
   "Could not find KaTeX resources in the template, you might want to \x1b]8;;https://katex.org/docs/browser\x1b\\include the KaTeX CSS\x1b]8;;\x1b\\."
-
-test :: String
-test = "" 
 
 --- String Helpers ---
 endsIn :: [String] -> String -> Bool
