@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
 
 module Util.Helpers where
 
@@ -12,6 +13,15 @@ import GHC.IO.Unsafe (unsafePerformIO)
 import System.Exit (ExitCode (ExitFailure))
 import Text.Mustache (PName (PName))
 
+--- Constants ---
+katexWarningMessage :: String
+katexWarningMessage =
+  "Could not find KaTeX resources in the template, you might want to \x1b]8;;https://katex.org/docs/browser\x1b\\include the KaTeX CSS\x1b]8;;\x1b\\."
+
+test :: String
+test = "" 
+
+--- String Helpers ---
 endsIn :: [String] -> String -> Bool
 endsIn sfxs w = any (`isSuffixOf` w) sfxs
 
@@ -31,10 +41,21 @@ indent n m = indentChars ++ intercalate ("\n" ++ indentChars) (lines m)
  where
   indentChars = replicate n ' '
 
+toPName :: String -> PName
+toPName = PName . T.pack
+
+--- Type Helpers ---
 isErrorCode :: ExitCode -> Bool
 isErrorCode (ExitFailure _) = True
 isErrorCode _ = False
 
+{- | If the outer Either is Left x returns Left x; if the outer Either is Right ys returns
+Right ys if there are no Lefts in ys, and otherwise Left z for the first Left z in ys
+-}
+flattenEithers :: Either a [Either a c] -> Either a [c]
+flattenEithers = either Left sequence
+
+--- Optimization ---
 memoizeIO :: (Ord a) => (a -> IO b) -> IO (a -> IO b)
 memoizeIO f = do
   c <- newIORef Map.empty
@@ -52,6 +73,3 @@ memoizeIO f = do
 -- This is not great, maybe try to find an alternative solution
 memoize :: (Ord a) => (a -> IO b) -> (a -> IO b)
 memoize = unsafePerformIO . memoizeIO
-
-toPName :: String -> PName
-toPName = PName . T.pack
