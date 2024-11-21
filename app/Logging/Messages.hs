@@ -1,4 +1,9 @@
-module Logging.Messages where
+module Logging.Messages (
+  noKatexWarning,
+  templateNotFound,
+  templateCompilationFailed,
+  missingMetadataKey,
+) where
 
 import System.Console.ANSI (hyperlinkCode)
 
