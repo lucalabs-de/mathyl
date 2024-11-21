@@ -22,10 +22,11 @@ import System.FilePath (takeFileName)
 import Text.Megaparsec (ParseErrorBundle, errorBundlePretty, runParser)
 import Text.Mustache (compileMustacheText, renderMustache)
 import qualified Text.Mustache.Type as MT
+
+import qualified Logging.Messages as Msg
 import Util.FileHelpers (normalizeFilePath)
 import Util.Helpers (
   flattenEithers,
-  katexWarningMessage,
   memoize,
   toPName,
   trim,
@@ -36,7 +37,7 @@ fillTemplate post templateMap templateFile = do
   (compiledTemplate, templateInfo) <- getFullTemplate templateFile
 
   -- TODO maybe only log this when there's actually math in the template
-  unless (containsKatexInfo templateInfo) $ logMsg katexWarningMessage
+  unless (containsKatexInfo templateInfo) $ logMsg Msg.noKatexWarning
 
   let filledTemplate = renderMustache compiledTemplate (toJSON templateMap)
   liftIO $ LTIO.writeFile (pOutputFile post) filledTemplate
@@ -49,7 +50,7 @@ getFullTemplate path =
 
     fileExists <- liftIO $ doesFileExist cleanPath
     unless fileExists do
-      logError $ "Could not find template " ++ cleanPath
+      logError $ Msg.templateNotFound cleanPath 
       error "Failed!"
 
     baseTemplate <- compileTemplateFile cleanPath
@@ -78,7 +79,7 @@ compileTemplateFile path = do
   templateRes <- liftIO $ getCompiledTemplateByFile path
   case templateRes of
     Left bundle -> do
-      logError "Could not compile template!"
+      logError Msg.templateCompilationFailed
       logError (errorBundlePretty bundle)
       error "Failed!"
     Right template -> return template

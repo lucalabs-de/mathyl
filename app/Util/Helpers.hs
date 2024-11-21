@@ -12,11 +12,6 @@ import GHC.IO.Unsafe (unsafePerformIO)
 import System.Exit (ExitCode (ExitFailure))
 import Text.Mustache (PName (PName))
 
---- Constants ---
-katexWarningMessage :: String
-katexWarningMessage =
-  "Could not find KaTeX resources in the template, you might want to \x1b]8;;https://katex.org/docs/browser\x1b\\include the KaTeX CSS\x1b]8;;\x1b\\."
-
 --- String Helpers ---
 endsIn :: [String] -> String -> Bool
 endsIn sfxs w = any (`isSuffixOf` w) sfxs

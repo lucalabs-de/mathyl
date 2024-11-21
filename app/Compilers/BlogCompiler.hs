@@ -47,6 +47,7 @@ import Util.FileHelpers
 import Util.Helpers
 
 import Logging.Logger
+import qualified Logging.Messages as Msg
 
 markdownExtensions :: Extensions
 markdownExtensions =
@@ -159,7 +160,7 @@ renderAst post ast = do
   let templateMetadata = metadata !? "template"
 
   case templateMetadata of
-    Nothing -> logError "Missing template key in metadata"
+    Nothing -> logError $ Msg.missingMetadataKey "template" 
     Just templateFile ->
       logSubroutine $
         fillTemplate

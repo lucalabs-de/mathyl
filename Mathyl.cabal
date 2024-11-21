@@ -23,6 +23,7 @@ executable Mathyl
                     , Util.MathHelpers
                     , Util.Files
                     , Logging.Logger
+                    , Logging.Messages
                     , Compilers.Templates
                     , Compilers.BlogCompiler
                     , Compilers.MathCompiler
@@ -58,6 +59,8 @@ executable Mathyl
                     , gi-cairo-render
                     , gi-cairo
                     , quickjs-hs
+                    , ansi-terminal
     hs-source-dirs:   app
     default-language: Haskell2010
-    ghc-options: -Wall -XFlexibleContexts
+    default-extensions: FlexibleContexts
+    ghc-options: -Wall 
