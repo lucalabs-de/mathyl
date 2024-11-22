@@ -69,13 +69,13 @@ settingsParser =
           <> short 's'
       )
     <*> switch
-      ( help "Continue compiling on errors"
-          <> long "continue-on-errors"
-          <> short 'e'
-      )
-    <*> switch
       ( help "Generate nicer looking urls"
           <> long "nice-urls"
+          <> short 'u'
+      )
+    <*> switch
+      ( help "Continue compiling on errors"
+          <> long "continue-on-errors"
           <> short 'e'
       )
     <*> switch
