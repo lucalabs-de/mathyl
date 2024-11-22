@@ -93,8 +93,15 @@ compileFile ::
   FilePath ->
   m ()
 compileFile inDir outDir post = do
+  useNiceUrls <- asks oNiceUrls
+
   let fileName = takeBaseName post
-  let outputFile = replace inDir outDir post -<.> "html"
+
+  let outputFile =
+        if useNiceUrls
+          then replace inDir outDir (takeDirectory post) </> fileName </> "index.html"
+          else replace inDir outDir post -<.> "html"
+
   let outputDir = takeDirectory outputFile
   let assetDirName = fileName ++ "-assets"
   let assetDir = outputDir </> assetDirName
