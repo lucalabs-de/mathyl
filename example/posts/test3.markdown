@@ -1,4 +1,3 @@
-
 ---
 title: Example Post
 published: 2023-11-11

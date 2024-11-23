@@ -33,7 +33,7 @@ data ImageProperty = Height | Width | AltText
   deriving (Eq, Ord, Show)
 
 data PropertyValue = IntValue Int | TextValue Text
-  deriving Show
+  deriving (Show)
 
 class ExtractValue a where
   value :: PropertyValue -> Maybe a
@@ -146,9 +146,9 @@ tikzPlaceholder dir ext idx props =
         []
         (T.pack $ tikzFilePath (takeBaseName dir) ext idx, "")
     ]
-  where 
-    intToText :: Int -> Text
-    intToText = T.pack . show 
+ where
+  intToText :: Int -> Text
+  intToText = T.pack . show
 
 -- | Given an index @p idx and a file path @p dir, constructs the file path "dir/idx.pdf"
 tikzFilePath :: FilePath -> String -> Int -> FilePath

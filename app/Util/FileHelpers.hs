@@ -68,23 +68,6 @@ normalizeFilePath path = joinPath $ removeDetours $ splitDirectories $ normalise
   removeDetours (a : dirs) = a : removeDetours dirs
   removeDetours [] = []
 
--- | Computes the shortest relative path from @p source to @p target
-getRelativePath :: FilePath -> FilePath -> FilePath
-getRelativePath source target =
-  normalizeFilePath $
-    joinPath $
-      replicate (length sourceDirs - length commonPrefix) ".."
-        ++ fromJust (stripPrefix commonPrefix targetDirs)
- where
-  sourceDirs = splitDirectories $ normalise source
-  targetDirs = splitDirectories $ normalise target
-
-  commonPrefix =
-    fst
-      <$> takeWhile
-        (uncurry (==))
-        (zip sourceDirs targetDirs)
-
 -- | Replaces the topmost occurrence of @p oldDir by @p newDir
 replaceTopDirectory :: FilePath -> FilePath -> FilePath -> FilePath
 replaceTopDirectory oldDir newDir input

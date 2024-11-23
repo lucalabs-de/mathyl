@@ -3,7 +3,7 @@
 
 module Compilers.Templates (fillTemplate) where
 
-import Compilers.Post (PostInfo (pOutputFile))
+import Compilers.Post (PostInfo (pOutputFile, pOutputDir))
 import Control.Monad (unless)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Aeson (toJSON)
@@ -17,7 +17,7 @@ import Parsers.MustachePartialParser (
   TemplateInfo (containsKatexInfo, partials),
   pTemplateInfo,
  )
-import System.Directory (doesFileExist)
+import System.Directory (doesFileExist, createDirectoryIfMissing)
 import System.FilePath (takeFileName)
 import Text.Megaparsec (ParseErrorBundle, errorBundlePretty, runParser)
 import Text.Mustache (compileMustacheText, renderMustache)
@@ -40,6 +40,8 @@ fillTemplate post templateMap templateFile = do
   unless (containsKatexInfo templateInfo) $ logMsg Msg.noKatexWarning
 
   let filledTemplate = renderMustache compiledTemplate (toJSON templateMap)
+
+  liftIO $ createDirectoryIfMissing True (pOutputDir post)
   liftIO $ LTIO.writeFile (pOutputFile post) filledTemplate
 
 getFullTemplate :: (MonadLogger m, MonadIO m) => FilePath -> m (MT.Template, TemplateInfo)

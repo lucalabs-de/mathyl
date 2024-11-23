@@ -15,7 +15,7 @@ templateNotFound :: String -> String
 templateNotFound = (++) "Could not find template "
 
 missingMetadataKey :: String -> String
-missingMetadataKey k = "Missing " ++ k ++ " key in metadata"
+missingMetadataKey k = "Missing " ++ k ++ " key in metadata!"
 
 templateCompilationFailed :: String
 templateCompilationFailed = "Could not compile template!"

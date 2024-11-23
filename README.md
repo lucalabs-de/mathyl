@@ -1,7 +1,7 @@
 <h3 align="center">mathyl</h3>
 
 <p align="justify">
-mathyl is a batteries-included static site generator. You define your site structure in terms of directories and write your content in markdown files. mathyl then simply mirrors the directory structure, compiling all markdown files to HTML along the way. You can also define HTML templates for your content using mustache.
+mathyl is a batteries-included static site generator. You define your site structure in terms of directories and write your content in markdown files. mathyl then simply mirrors the directory structure, compiling all markdown files to HTML along the way. You can define HTML templates for your content using mustache.
 </p>
 
 <p align="justify">

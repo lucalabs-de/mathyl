@@ -3,51 +3,49 @@
 
 module Compilers.BlogCompiler (compile) where
 
-import Control.Monad (forM_)
+import Control.Monad (forM_, unless)
+import Control.Monad.Catch (MonadMask, MonadThrow)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (MonadReader (..), asks)
 import Data.Either (fromRight)
-import Data.Map.Strict (Map, fromList, insert, toList, (!?))
+import Data.Map.Strict (Map, insert, (!?))
 import Data.Maybe (fromMaybe)
+import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import Data.Traversable (forM)
 import Settings.Options (Settings (..))
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath (takeBaseName, takeDirectory, (-<.>), (</>))
 import Text.Pandoc (
-  Block (Plain),
-  Extension (
-    Ext_fenced_code_attributes,
-    Ext_fenced_code_blocks,
-    Ext_tex_math_dollars,
-    Ext_yaml_metadata_block
-  ),
+  Extension (..),
   Extensions,
-  Meta (unMeta),
-  MetaValue (MetaInlines),
   Pandoc (..),
   ReaderOptions (readerExtensions),
   def,
   extensionsFromList,
-  nullMeta,
   readMarkdown,
   renderError,
-  runIO,
+  runPure,
   writeHtml5String,
-  writeMarkdown,
  )
 
+import Compilers.LinkCompiler (processHyperlinks)
 import Compilers.MathCompiler (processMathBlocks)
 import Compilers.Post (PostInfo (..))
 import Compilers.Templates
 import Compilers.TikzCompiler
-import Control.Monad.Catch (MonadMask, MonadThrow)
+import Parsers.MetadataParser (parseMetadata)
+
 import Util.FileHelpers
 import Util.Helpers
 
 import Logging.Logger
 import qualified Logging.Messages as Msg
+
+data AstInfo = AstInfo
+  { aMetadata :: Map Text Text
+  , aTikzImages :: [TikzImage]
+  }
 
 markdownExtensions :: Extensions
 markdownExtensions =
@@ -56,6 +54,7 @@ markdownExtensions =
     , Ext_fenced_code_attributes
     , Ext_yaml_metadata_block
     , Ext_tex_math_dollars
+    , Ext_link_attributes
     ]
 
 compile ::
@@ -69,7 +68,7 @@ compile ::
   FilePath ->
   m ()
 compile inDir outDir = do
-  logMsg "Generating blog..."
+  logMsg "Generating site..."
 
   liftIO $ removeDirectoryIfExists outDir -- clean workdir
   posts <- liftIO $ getMarkdownFiles inDir
@@ -119,18 +118,20 @@ compileFile inDir outDir post = do
 
   logMsg $ "Compiling " ++ show fileName
 
-  liftIO $ createDirectoryIfMissing True assetDir
-
   md <- liftIO $ TIO.readFile post
-  result <- liftIO . runIO $ readMarkdown def{readerExtensions = markdownExtensions} md
+  let pandocResult = runPure $ readMarkdown def{readerExtensions = markdownExtensions} md
 
-  case result of
+  case pandocResult of
     Left bundle -> do
       logError "Failed!"
       logErrorP (renderError bundle)
-    Right ast -> logSubroutine $ renderAst postInfo ast
+    Right ast -> do
+      (updatedAst, astInfo) <- processAst postInfo ast
 
-renderAst ::
+      logSubroutine $ renderImages postInfo (aTikzImages astInfo)
+      logSubroutine $ renderAst postInfo astInfo updatedAst
+
+processAst ::
   ( MonadReader Settings m
   , MonadLogger m
   , MonadThrow m
@@ -139,35 +140,39 @@ renderAst ::
   ) =>
   PostInfo ->
   Pandoc ->
-  m ()
-renderAst post ast = do
-  metadata <- liftIO $ parseMetadata ast
+  m (Pandoc, AstInfo)
+processAst post ast = do
+  let metadata = parseMetadata ast
   useSvgs <- asks oUseSvgs
 
   let texPkgs = commaSeparatedToList $ fromMaybe "" $ metadata !? "packages"
   let fileExt = if useSvgs then ".svg" else ".png"
 
-  logMsg "Processing LaTeX"
+  astH <- processHyperlinks ast
+  astHM <- processMathBlocks astH
+  let (astHMT, tikzImages) = processTikzBlocks (pAssetDir post) fileExt texPkgs astHM
 
-  (updatedAst, tikzImages) <-
-    processTikzBlocks (pAssetDir post) fileExt texPkgs
-      <$> processMathBlocks ast
+  return (astHMT, AstInfo metadata tikzImages)
 
-  let numImages = length tikzImages
+renderAst ::
+  ( MonadReader Settings m
+  , MonadLogger m
+  , MonadIO m
+  ) =>
+  PostInfo ->
+  AstInfo ->
+  Pandoc ->
+  m ()
+renderAst post astInfo ast = do
+  let metadata = aMetadata astInfo
 
-  forM_ (zip [1 :: Int ..] tikzImages) \(idx, source) -> do
-    logMsg $ "Compiling Image " ++ show idx ++ "/" ++ show numImages
-    logSubroutine $ compileTikzImage source
-
-  html <-
-    fromRight ""
-      <$> (liftIO . runIO) (writeHtml5String def updatedAst)
+  let html = fromRight "" . runPure $ writeHtml5String def ast
 
   logMsg "Filling template"
   let templateMetadata = metadata !? "template"
 
   case templateMetadata of
-    Nothing -> logError $ Msg.missingMetadataKey "template" 
+    Nothing -> logError $ Msg.missingMetadataKey "template"
     Just templateFile ->
       logSubroutine $
         fillTemplate
@@ -175,18 +180,22 @@ renderAst post ast = do
           (insert "content" html metadata)
           (pInputDir post </> T.unpack templateFile)
 
--- | Parses the Markdown metadata block and returns it as a map
-parseMetadata :: Pandoc -> IO (Map T.Text T.Text)
-parseMetadata (Pandoc meta _) = fromList <$> parseMetadata_ (unMeta meta)
- where
-  parseMetadata_ metaMap = do
-    let kvList = toList metaMap
-    forM kvList $ \(k, v) -> case v of
-      MetaInlines i -> do
-        -- since we read from markdown, this should give us exactly what the user wrote
-        parsedValue <- runIO $ writeMarkdown def (Pandoc nullMeta [Plain i])
-        return (k, fromRight "" parsedValue)
-      _ -> return (k, "")
+renderImages ::
+  ( MonadReader Settings m
+  , MonadLogger m
+  , MonadIO m
+  ) =>
+  PostInfo ->
+  [TikzImage] ->
+  m ()
+renderImages post imgs = unless (null imgs) $ do
+  liftIO $ createDirectoryIfMissing True (pAssetDir post)
+
+  let numImages = length imgs
+
+  forM_ (zip [1 :: Int ..] imgs) \(idx, source) -> do
+    logMsg $ "Compiling Image " ++ show idx ++ "/" ++ show numImages
+    logSubroutine $ compileTikzImage source
 
 -- | Returns a list of all markdown files stored in @p dir and its subdirectories.
 getMarkdownFiles :: FilePath -> IO [FilePath]

@@ -28,10 +28,12 @@ executable mathyl
                     , Compilers.BlogCompiler
                     , Compilers.MathCompiler
                     , Compilers.TikzCompiler
+                    , Compilers.LinkCompiler
                     , Settings.Options
                     , Compilers.Post
                     , Conversion.PdfConverter
                     , Parsers.CliParser
+                    , Parsers.MetadataParser
                     , Parsers.MustachePartialParser
                     , Paths_Mathyl
 

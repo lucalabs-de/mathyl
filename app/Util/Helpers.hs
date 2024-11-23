@@ -4,7 +4,7 @@ module Util.Helpers where
 
 import Data.Char (isSpace)
 import Data.IORef (newIORef, readIORef, writeIORef)
-import Data.List (dropWhileEnd, intercalate, isSuffixOf)
+import Data.List (dropWhileEnd, intercalate, isSuffixOf, isPrefixOf)
 import Data.Map ((!?))
 import qualified Data.Map as Map
 import qualified Data.Text as T
@@ -15,6 +15,9 @@ import Text.Mustache (PName (PName))
 --- String Helpers ---
 endsIn :: [String] -> String -> Bool
 endsIn sfxs w = any (`isSuffixOf` w) sfxs
+
+startsWith :: [String] -> String -> Bool
+startsWith pfxs w = any (`isPrefixOf` w) pfxs
 
 trim :: String -> String
 trim = dropWhile isSpace . dropWhileEnd isSpace
