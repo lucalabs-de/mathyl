@@ -14,6 +14,7 @@ import System.Directory (
   removeFile,
  )
 import System.FilePath (
+  isValid,
   joinPath,
   normalise,
   splitDirectories,
@@ -23,6 +24,11 @@ import System.FilePath (
   (</>),
  )
 import System.IO.Error (isDoesNotExistError)
+
+import Data.Bifunctor (second)
+import Data.List (stripPrefix)
+import Data.Maybe (fromJust)
+import Util.Helpers (startsWith)
 
 copyAndCreateParents :: FilePath -> FilePath -> IO ()
 copyAndCreateParents from to =
@@ -62,9 +68,24 @@ normalizeFilePath path = joinPath $ removeDetours $ splitDirectories $ normalise
   removeDetours (a : dirs) = a : removeDetours dirs
   removeDetours [] = []
 
-pathToFileScheme :: FilePath -> IO String
-pathToFileScheme path = ("file://" ++) <$> makeAbsolute path
+-- | Computes the shortest relative path from @p source to @p target
+getRelativePath :: FilePath -> FilePath -> FilePath
+getRelativePath source target =
+  normalizeFilePath $
+    joinPath $
+      replicate (length sourceDirs - length commonPrefix) ".."
+        ++ fromJust (stripPrefix commonPrefix targetDirs)
+ where
+  sourceDirs = splitDirectories $ normalise source
+  targetDirs = splitDirectories $ normalise target
 
+  commonPrefix =
+    fst
+      <$> takeWhile
+        (uncurry (==))
+        (zip sourceDirs targetDirs)
+
+-- | Replaces the topmost occurrence of @p oldDir by @p newDir
 replaceTopDirectory :: FilePath -> FilePath -> FilePath -> FilePath
 replaceTopDirectory oldDir newDir input
   | T.null back = input
@@ -73,3 +94,10 @@ replaceTopDirectory oldDir newDir input
   (front, back) = T.breakOn (T.pack oldDir) inputT
   inputT = T.pack input
   newDirT = T.pack newDir
+
+pathToFileScheme :: FilePath -> IO String
+pathToFileScheme path = ("file://" ++) <$> makeAbsolute path
+
+-- | Takes a URI and tries to determine whether it is a local path as opposed to a web URL
+isProbablyLocalPath :: String -> Bool
+isProbablyLocalPath p = isValid p && (not . startsWith ["https://", "http://"]) p
