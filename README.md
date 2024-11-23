@@ -29,14 +29,6 @@ mathyl preview <in path> [out path]
 ```
 Starts a local preview at at 127.0.0.1:8080. Optionally stores your blog files at [out path]. 
 
-### Implementation TODOs
-
-* [ ] Implement options 
-    - [x] --use-svgs
-    - [ ] --continue-on-errors
-    - [ ] --nice-urls
-* [ ] Add option to add KaTeX resources to HTML header automatically
-
 ### Future Plans
 * [ ] Option to continue compilation on errors (--continue-on-errors)
-* [ ] Option to make URLs nicer (`blog.tld/posts/test-post` instead of `blog.tld/posts/test-post.html`, --nice-urls)
+* [x] Option to make URLs nicer (`blog.tld/posts/test-post` instead of `blog.tld/posts/test-post.html`, --nice-urls)
