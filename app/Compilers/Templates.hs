@@ -49,7 +49,6 @@ data FullTemplate = FullTemplate
 
 fillTemplate :: (MonadLogger m, MonadIO m) => PostInfo -> Map T.Text T.Text -> FilePath -> m ()
 fillTemplate post templateMap templateFile = do
-  -- (compiledTemplate, templateInfo, imgPaths)
   fullTemplate <- getFullTemplate templateFile
 
   let compiledTemplate = eTemplate fullTemplate

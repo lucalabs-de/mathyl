@@ -55,6 +55,8 @@ markdownExtensions =
     , Ext_yaml_metadata_block
     , Ext_tex_math_dollars
     , Ext_link_attributes
+    , Ext_raw_html
+    , Ext_markdown_in_html_blocks
     ]
 
 compile ::
