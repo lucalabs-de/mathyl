@@ -25,9 +25,6 @@ import System.FilePath (
  )
 import System.IO.Error (isDoesNotExistError)
 
-import Data.Bifunctor (second)
-import Data.List (stripPrefix)
-import Data.Maybe (fromJust)
 import Util.Helpers (startsWith)
 
 copyAndCreateParents :: FilePath -> FilePath -> IO ()

@@ -6,7 +6,16 @@ import Data.Either (fromRight)
 import Data.Functor ((<&>))
 import Data.Map (Map, fromList, toList)
 import Data.Text (Text)
-import Text.Pandoc (Block (..), Meta (..), MetaValue (MetaInlines), Pandoc (..), def, nullMeta, runPure, writeMarkdown)
+import Text.Pandoc (
+  Block (..),
+  Meta (..),
+  MetaValue (MetaInlines),
+  Pandoc (..),
+  def,
+  nullMeta,
+  runPure,
+  writeMarkdown,
+ )
 
 -- | Parses the Markdown metadata block and returns it as a map
 parseMetadata :: Pandoc -> Map Text Text

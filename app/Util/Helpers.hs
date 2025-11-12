@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 
 module Util.Helpers where
 
@@ -48,6 +49,9 @@ Right ys if there are no Lefts in ys, and otherwise Left z for the first Left z 
 -}
 flattenEithers :: Either a [Either a c] -> Either a [c]
 flattenEithers = either Left sequence
+
+extractF :: Functor f => (f a, b) -> f (a, b)
+extractF (x, y) = fmap (, y) x
 
 --- Optimization ---
 memoizeIO :: (Ord a) => (a -> IO b) -> IO (a -> IO b)

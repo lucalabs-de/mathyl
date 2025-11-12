@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               Mathyl
-version:            1.0.0
+version:            1.3.0
 synopsis:           Static Site Generator with extensive LaTeX support
 
 homepage:
@@ -33,6 +33,8 @@ executable mathyl
                     , Compilers.Post
                     , Conversion.PdfConverter
                     , Parsers.CliParser
+                    , Parsers.Common
+                    , Parsers.FilePathParser
                     , Parsers.MetadataParser
                     , Parsers.MustachePartialParser
                     , Paths_Mathyl

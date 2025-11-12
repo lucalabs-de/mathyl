@@ -2,27 +2,24 @@
 
 module Parsers.MustachePartialParser where
 
-import Control.Monad.Combinators (between, skipManyTill, some, someTill)
-import Data.List (intercalate)
-import Data.Text (Text)
+import Control.Monad.Combinators (between, skipManyTill, someTill)
 import qualified Data.Text as T
-import Data.Void
 import Text.Megaparsec (
   MonadParsec (eof, lookAhead, try),
-  Parsec,
   anySingle,
   many,
   noneOf,
-  sepBy1,
-  (<?>),
   (<|>),
  )
 import Text.Megaparsec.Char
+
+import Parsers.Common
 
 data TemplateInfo = TemplateInfo
   { partials :: [FilePath]
   , containsKatexInfo :: Bool
   }
+  deriving (Show)
 
 instance Semigroup TemplateInfo where
   (<>) t1 t2 =
@@ -31,24 +28,11 @@ instance Semigroup TemplateInfo where
       , containsKatexInfo = containsKatexInfo t1 || containsKatexInfo t2
       }
 
-type Parser = Parsec Void Text
-
 pPartialBeg :: Parser String
 pPartialBeg = T.unpack <$> string "{{>" <* many (char ' ')
 
 pPartialEnd :: Parser String
 pPartialEnd = many (char ' ') *> (T.unpack <$> string "}}")
-
-pFileName :: Parser String
-pFileName = some (noneOf ['{', '}', '<', '>', '/'])
-
-pFilePath :: Parser FilePath
-pFilePath =
-  concat3
-    <$> many (char '/')
-    <*> (intercalate "/" <$> sepBy1 pFileName (many (char '/')))
-    <*> many (char '/')
-      <?> "file path"
 
 pPartial :: Parser FilePath
 pPartial = pPartialBeg *> pFilePath <* pPartialEnd
@@ -74,6 +58,3 @@ pKatexInfo = (True <$ try pKatexCss) <|> pure False
 
 pTemplateInfo :: Parser TemplateInfo
 pTemplateInfo = flip TemplateInfo <$> lookAhead pKatexInfo <*> pPartials
-
-concat3 :: String -> String -> String -> String
-concat3 x y z = x ++ y ++ z

@@ -3,7 +3,7 @@
 
 module Compilers.Templates (fillTemplate) where
 
-import Compilers.Post (PostInfo (pOutputFile, pOutputDir))
+import Compilers.Post (PostInfo (pOutputDir, pOutputFile))
 import Control.Monad (unless)
 import Control.Monad.IO.Class (MonadIO (..))
 import Data.Aeson (toJSON)
@@ -17,24 +17,43 @@ import Parsers.MustachePartialParser (
   TemplateInfo (containsKatexInfo, partials),
   pTemplateInfo,
  )
-import System.Directory (doesFileExist, createDirectoryIfMissing)
-import System.FilePath (takeFileName)
+import System.Directory (createDirectoryIfMissing, doesFileExist)
+import System.FilePath (takeDirectory, takeFileName, (</>))
 import Text.Megaparsec (ParseErrorBundle, errorBundlePretty, runParser)
 import Text.Mustache (compileMustacheText, renderMustache)
 import qualified Text.Mustache.Type as MT
 
 import qualified Logging.Messages as Msg
-import Util.FileHelpers (normalizeFilePath)
+import Parsers.FilePathParser (pImagePaths)
+import Util.FileHelpers (copyAndCreateParents, normalizeFilePath)
 import Util.Helpers (
+  extractF,
   flattenEithers,
   memoize,
   toPName,
   trim,
  )
 
+data TemplateImage = TemplateImage
+  { tiTemplatePath :: FilePath
+  , tiImagePath :: FilePath
+  }
+  deriving (Show)
+
+data FullTemplate = FullTemplate
+  { eTemplate :: MT.Template
+  , eTemplateInfo :: TemplateInfo
+  , eImages :: [TemplateImage]
+  }
+  deriving (Show)
+
 fillTemplate :: (MonadLogger m, MonadIO m) => PostInfo -> Map T.Text T.Text -> FilePath -> m ()
 fillTemplate post templateMap templateFile = do
-  (compiledTemplate, templateInfo) <- getFullTemplate templateFile
+  -- (compiledTemplate, templateInfo, imgPaths)
+  fullTemplate <- getFullTemplate templateFile
+
+  let compiledTemplate = eTemplate fullTemplate
+  let templateInfo = eTemplateInfo fullTemplate
 
   -- TODO maybe only log this when there's actually math in the template
   unless (containsKatexInfo templateInfo) $ logMsg Msg.noKatexWarning
@@ -43,25 +62,50 @@ fillTemplate post templateMap templateFile = do
 
   liftIO $ createDirectoryIfMissing True (pOutputDir post)
   liftIO $ LTIO.writeFile (pOutputFile post) filledTemplate
+  liftIO $
+    mapM_
+      ( \f ->
+          copyAndCreateParents
+            (tiTemplatePath f </> tiImagePath f)
+            (pOutputDir post </> tiImagePath f)
+      )
+      (eImages fullTemplate)
 
-getFullTemplate :: (MonadLogger m, MonadIO m) => FilePath -> m (MT.Template, TemplateInfo)
+getFullTemplate :: (MonadLogger m, MonadIO m) => FilePath -> m FullTemplate
 getFullTemplate path =
   do
     -- remove any surrounding whitespace and unify file paths for memoization
     let cleanPath = normalizeFilePath $ trim path
+    let cleanPathDir = takeDirectory cleanPath
 
     fileExists <- liftIO $ doesFileExist cleanPath
     unless fileExists do
-      logError $ Msg.templateNotFound cleanPath 
+      logError $ Msg.templateNotFound cleanPath
       error "Failed!"
 
-    baseTemplate <- compileTemplateFile cleanPath
+    (baseTemplate, containedImgPaths) <- compileTemplateFile cleanPath
+    let prefixedContainedImgPaths = TemplateImage cleanPathDir <$> containedImgPaths
+
     templateInfo <- liftIO $ getTemplateInfo cleanPath
     case templateInfo of
       Left bundle -> logError (errorBundlePretty bundle) >> error "Failed!"
       Right info -> do
-        compiledDependencies <- mapM compileTemplateFile (partials info)
-        return (foldr (<>) baseTemplate compiledDependencies, info)
+        -- compile all partial templates and extract the image paths contained in them, prefixed by
+        -- the partial's path
+        compiledDependenciesWithImgs <- mapM (\p -> extractF (compileTemplateFile p, p)) (partials info)
+
+        let compiledDependencies = fst . fst <$> compiledDependenciesWithImgs
+        let depContainedImgPaths =
+              concatMap
+                (\((_, paths), pPath) -> TemplateImage (cleanPathDir </> pPath) <$> paths)
+                compiledDependenciesWithImgs
+
+        return
+          FullTemplate
+            { eTemplate = foldr (<>) baseTemplate compiledDependencies
+            , eTemplateInfo = info
+            , eImages = prefixedContainedImgPaths ++ depContainedImgPaths
+            }
 
 getTemplateInfo :: FilePath -> IO (Either (ParseErrorBundle T.Text Void) TemplateInfo)
 getTemplateInfo path = do
@@ -76,7 +120,7 @@ getTemplateInfo path = do
   -- combine all partial info with original template info
   return $ templateInfo >>= (<$> partialsInfo) . foldr (<>)
 
-compileTemplateFile :: (MonadLogger m, MonadIO m) => FilePath -> m MT.Template
+compileTemplateFile :: (MonadLogger m, MonadIO m) => FilePath -> m (MT.Template, [FilePath])
 compileTemplateFile path = do
   templateRes <- liftIO $ getCompiledTemplateByFile path
   case templateRes of
@@ -86,9 +130,13 @@ compileTemplateFile path = do
       error "Failed!"
     Right template -> return template
 
-getCompiledTemplateByFile :: FilePath -> IO (Either (ParseErrorBundle T.Text Void) MT.Template)
+getCompiledTemplateByFile :: FilePath -> IO (Either (ParseErrorBundle T.Text Void) (MT.Template, [FilePath]))
 getCompiledTemplateByFile =
   memoize \path -> do
     templateSrc <- TIO.readFile path
+
     let identifier = toPName path
-    return $ compileMustacheText identifier templateSrc
+    let containedImgPaths = runParser pImagePaths path templateSrc
+    let compiledTemplate = compileMustacheText identifier templateSrc
+
+    return $ liftA2 (,) compiledTemplate containedImgPaths
