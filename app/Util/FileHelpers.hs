@@ -27,6 +27,12 @@ import System.IO.Error (isDoesNotExistError)
 
 import Util.Helpers (startsWith)
 
+markdownFileExts :: [String]
+markdownFileExts = [".md", ".markdown"]
+
+htmlFileExts :: [String]
+htmlFileExts = [".html", ".htm"]
+
 copyAndCreateParents :: FilePath -> FilePath -> IO ()
 copyAndCreateParents from to =
   createDirectoryIfMissing True (takeDirectory to) >> copyFile from to

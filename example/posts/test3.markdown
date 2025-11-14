@@ -13,5 +13,5 @@ $$\sum_{i=1}^n i = \frac{n(n+1)}{2}$$
 
 <details>
   <summary>More Information</summary>
-    This acts like a collapsible div section!
+    This acts like a *collapsible* div section!
 </details>

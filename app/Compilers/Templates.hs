@@ -1,12 +1,12 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE MonoLocalBinds #-}
 
-module Compilers.Templates (fillTemplate) where
+module Compilers.Templates (fillTemplate, fillStandaloneTemplate) where
 
 import Compilers.Post (PostInfo (pOutputDir, pOutputFile))
 import Control.Monad (unless)
 import Control.Monad.IO.Class (MonadIO (..))
-import Data.Aeson (toJSON)
+import Data.Aeson (toJSON, Value)
 import Data.Map (Map)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
@@ -20,12 +20,12 @@ import Parsers.MustachePartialParser (
 import System.Directory (createDirectoryIfMissing, doesFileExist)
 import System.FilePath (takeDirectory, takeFileName, (</>))
 import Text.Megaparsec (ParseErrorBundle, errorBundlePretty, runParser)
-import Text.Mustache (compileMustacheText, renderMustache)
+import Text.Mustache (compileMustacheFile, compileMustacheText, renderMustache)
 import qualified Text.Mustache.Type as MT
 
 import qualified Logging.Messages as Msg
 import Parsers.FilePathParser (pImagePaths)
-import Util.FileHelpers (copyAndCreateParents, normalizeFilePath)
+import Util.FileHelpers (copyAndCreateParents, normalizeFilePath, replaceTopDirectory)
 import Util.Helpers (
   extractF,
   flattenEithers,
@@ -46,6 +46,22 @@ data FullTemplate = FullTemplate
   , eImages :: [TemplateImage]
   }
   deriving (Show)
+
+fillStandaloneTemplate ::
+  (MonadLogger m, MonadIO m) =>
+  FilePath ->
+  FilePath ->
+  Value ->
+  FilePath ->
+  m ()
+fillStandaloneTemplate inDir outDir mappings file = do
+  compiledTemplate <- compileMustacheFile file
+
+  let filledTemplate = renderMustache compiledTemplate mappings
+  let outputFile = replaceTopDirectory inDir outDir file 
+
+  liftIO $ createDirectoryIfMissing True (takeDirectory outputFile)
+  liftIO $ LTIO.writeFile outputFile filledTemplate
 
 fillTemplate :: (MonadLogger m, MonadIO m) => PostInfo -> Map T.Text T.Text -> FilePath -> m ()
 fillTemplate post templateMap templateFile = do

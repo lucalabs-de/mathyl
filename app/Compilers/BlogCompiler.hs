@@ -3,10 +3,11 @@
 
 module Compilers.BlogCompiler (compile) where
 
-import Control.Monad (forM_, unless)
+import Control.Monad (forM, forM_, unless)
 import Control.Monad.Catch (MonadMask, MonadThrow)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Reader (MonadReader (..), asks)
+import Data.Aeson (ToJSON (toJSON), Value, object, (.=))
 import Data.Either (fromRight)
 import Data.Map.Strict (Map, insert, (!?))
 import Data.Maybe (fromMaybe)
@@ -15,7 +16,8 @@ import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import Settings.Options (Settings (..))
 import System.Directory (createDirectoryIfMissing)
-import System.FilePath (takeBaseName, takeDirectory, (-<.>), (</>))
+import System.Exit (ExitCode (ExitFailure), exitWith)
+import System.FilePath (makeRelative, takeBaseName, takeDirectory, (-<.>), (</>))
 import Text.Pandoc (
   Extension (..),
   Extensions,
@@ -41,10 +43,18 @@ import Util.Helpers
 
 import Logging.Logger
 import qualified Logging.Messages as Msg
+import Debug.Trace
 
 data AstInfo = AstInfo
-  { aMetadata :: Map Text Text
+  { aTitle :: Text
+  , aMetadata :: Map Text Text
   , aTikzImages :: [TikzImage]
+  }
+
+data CompiledFileInfo = FileInfo
+  { cfTitle :: Text
+  , cfMetadata :: Map Text Text
+  , cfOutLocation :: FilePath
   }
 
 markdownExtensions :: Extensions
@@ -74,9 +84,13 @@ compile inDir outDir = do
 
   liftIO $ removeDirectoryIfExists outDir -- clean workdir
   posts <- liftIO $ getMarkdownFiles inDir
-  otherFiles <- liftIO $ getNonMarkdownFiles inDir
+  htmlFiles <- liftIO $ getHtmlFiles inDir
+  otherFiles <- liftIO $ getOtherFiles inDir
 
-  logSubroutine $ forM_ posts (compileFile inDir outDir)
+  compiledFileInfo <- logSubroutine $ forM posts (compileFile inDir outDir)
+
+  logMsg "Filling placeholders in HTML files"
+  logSubroutine $ forM_ htmlFiles (fillHtmlPlaceholders inDir outDir compiledFileInfo)
 
   forM_ otherFiles \f -> liftIO $ copyAndCreateParents f (replaceTopDirectory inDir outDir f)
 
@@ -92,7 +106,7 @@ compileFile ::
   FilePath ->
   FilePath ->
   FilePath ->
-  m ()
+  m CompiledFileInfo
 compileFile inDir outDir post = do
   useNiceUrls <- asks oNiceUrls
 
@@ -127,11 +141,19 @@ compileFile inDir outDir post = do
     Left bundle -> do
       logError "Failed!"
       logErrorP (renderError bundle)
+      liftIO $ exitWith (ExitFailure 1)
     Right ast -> do
       (updatedAst, astInfo) <- processAst postInfo ast
 
       logSubroutine $ renderImages postInfo (aTikzImages astInfo)
       logSubroutine $ renderAst postInfo astInfo updatedAst
+
+      return
+        FileInfo
+          { cfTitle = aTitle astInfo
+          , cfMetadata = aMetadata astInfo
+          , cfOutLocation = outputFile
+          }
 
 processAst ::
   ( MonadReader Settings m
@@ -154,7 +176,11 @@ processAst post ast = do
   astHM <- processMathBlocks astH
   let (astHMT, tikzImages) = processTikzBlocks (pAssetDir post) fileExt texPkgs astHM
 
-  return (astHMT, AstInfo metadata tikzImages)
+  case metadata !? "title" of
+    Nothing -> do
+      logError $ Msg.missingMetadataKey "title"
+      liftIO $ exitWith (ExitFailure 1)
+    Just title -> return (astHMT, AstInfo title metadata tikzImages)
 
 renderAst ::
   ( MonadReader Settings m
@@ -199,9 +225,44 @@ renderImages post imgs = unless (null imgs) $ do
     logMsg $ "Compiling Image " ++ show idx ++ "/" ++ show numImages
     logSubroutine $ compileTikzImage source
 
+fillHtmlPlaceholders ::
+  ( MonadReader Settings m
+  , MonadLogger m
+  , MonadIO m
+  ) =>
+  FilePath ->
+  FilePath ->
+  [CompiledFileInfo] ->
+  FilePath ->
+  m ()
+fillHtmlPlaceholders inDir outDir info file = do
+  logMsg file
+
+  let outFile = replaceTopDirectory inDir outDir file
+  let vals = generatePlaceholderValuesForFile outFile info
+
+  fillStandaloneTemplate inDir (takeDirectory outFile) vals file
+
+generatePlaceholderValuesForFile :: FilePath -> [CompiledFileInfo] -> Value
+generatePlaceholderValuesForFile file info =
+  object
+    [ "posts" .= (toJsonObject <$> info)
+    ]
+ where
+  toJsonObject :: CompiledFileInfo -> Value
+  toJsonObject fileInfo =
+    object
+      [ "title" .= cfTitle fileInfo
+      , "href" .= makeRelative file (cfOutLocation fileInfo)
+      , "meta" .= toJSON (cfMetadata fileInfo)
+      ]
+
 -- | Returns a list of all markdown files stored in @p dir and its subdirectories.
 getMarkdownFiles :: FilePath -> IO [FilePath]
-getMarkdownFiles dir = filter (endsIn [".md", ".markdown"]) <$> listDirectoryRecursive dir
+getMarkdownFiles dir = filter (endsIn markdownFileExts) <$> listDirectoryRecursive dir
 
-getNonMarkdownFiles :: FilePath -> IO [FilePath]
-getNonMarkdownFiles dir = filter (not . endsIn [".md", ".markdown"]) <$> listDirectoryRecursive dir
+getHtmlFiles :: FilePath -> IO [FilePath]
+getHtmlFiles dir = filter (endsIn htmlFileExts) <$> listDirectoryRecursive dir
+
+getOtherFiles :: FilePath -> IO [FilePath]
+getOtherFiles dir = filter (not . endsIn (markdownFileExts ++ htmlFileExts)) <$> listDirectoryRecursive dir
