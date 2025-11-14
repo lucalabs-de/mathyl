@@ -17,7 +17,7 @@ import qualified Data.Text.IO as TIO
 import Settings.Options (Settings (..))
 import System.Directory (createDirectoryIfMissing)
 import System.Exit (ExitCode (ExitFailure), exitWith)
-import System.FilePath (makeRelative, takeBaseName, takeDirectory, (-<.>), (</>))
+import System.FilePath (takeBaseName, takeDirectory, (-<.>), (</>))
 import Text.Pandoc (
   Extension (..),
   Extensions,
@@ -43,7 +43,6 @@ import Util.Helpers
 
 import Logging.Logger
 import qualified Logging.Messages as Msg
-import Debug.Trace
 
 data AstInfo = AstInfo
   { aTitle :: Text
@@ -241,7 +240,7 @@ fillHtmlPlaceholders inDir outDir info file = do
   let outFile = replaceTopDirectory inDir outDir file
   let vals = generatePlaceholderValuesForFile outFile info
 
-  fillStandaloneTemplate inDir (takeDirectory outFile) vals file
+  fillStandaloneTemplate inDir outDir vals file
 
 generatePlaceholderValuesForFile :: FilePath -> [CompiledFileInfo] -> Value
 generatePlaceholderValuesForFile file info =
@@ -253,7 +252,7 @@ generatePlaceholderValuesForFile file info =
   toJsonObject fileInfo =
     object
       [ "title" .= cfTitle fileInfo
-      , "href" .= makeRelative file (cfOutLocation fileInfo)
+      , "href" .= relativizePath (takeDirectory file) (cfOutLocation fileInfo)
       , "meta" .= toJSON (cfMetadata fileInfo)
       ]
 

@@ -71,6 +71,15 @@ normalizeFilePath path = joinPath $ removeDetours $ splitDirectories $ normalise
   removeDetours (a : dirs) = a : removeDetours dirs
   removeDetours [] = []
 
+relativizePath :: FilePath -> FilePath -> FilePath
+relativizePath from to = joinPath (replicate ups ".." ++ restTo)
+ where
+  fromParts = splitDirectories $ normalizeFilePath from
+  toParts = splitDirectories $ normalizeFilePath to
+  common = length $ takeWhile (uncurry (==)) (zip fromParts toParts)
+  ups = length fromParts - common
+  restTo = drop common toParts
+
 -- | Replaces the topmost occurrence of @p oldDir by @p newDir
 replaceTopDirectory :: FilePath -> FilePath -> FilePath -> FilePath
 replaceTopDirectory oldDir newDir input
